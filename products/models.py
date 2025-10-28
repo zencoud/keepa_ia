@@ -94,6 +94,18 @@ class Product(models.Model):
         default=dict,
         help_text="Historial completo de precios en formato JSON"
     )
+    rating_history = models.JSONField(
+        default=dict,
+        help_text="Historial de calificaciones en formato JSON"
+    )
+    sales_rank_history = models.JSONField(
+        default=dict,
+        help_text="Historial de sales rank en formato JSON"
+    )
+    reviews_data = models.JSONField(
+        default=dict,
+        help_text="Datos de reseñas en formato JSON"
+    )
     last_updated = models.DateTimeField(
         auto_now=True,
         help_text="Última vez que se actualizó la información"

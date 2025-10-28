@@ -4,6 +4,8 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.views.decorators.http import require_http_methods
+from django.http import JsonResponse
+import json
 from .models import Product
 from .keepa_service import KeepaService
 import logging
@@ -76,6 +78,9 @@ def search_product_view(request):
                     rating=product_data.get('rating'),
                     review_count=product_data.get('review_count'),
                     price_history=product_data.get('price_history', {}),
+                    rating_history=product_data.get('rating_history', {}),
+                    sales_rank_history=product_data.get('sales_rank_history', {}),
+                    reviews_data=product_data.get('reviews_data', {}),
                     queried_by=request.user
                 )
                 
@@ -105,7 +110,10 @@ def product_detail_view(request, asin):
         'price_used_display': product.get_price_display('used'),
         'rating_display': product.get_rating_display(),
         'sales_rank_display': product.get_sales_rank_display(),
-        'price_history_json': product.price_history,
+        'price_history_json': json.dumps(product.price_history),
+        'rating_history_json': json.dumps(product.rating_history),
+        'sales_rank_history_json': json.dumps(product.sales_rank_history),
+        'reviews_data_json': json.dumps(product.reviews_data),
     }
     
     return render(request, 'products/detail.html', context)
@@ -163,6 +171,9 @@ def refresh_product_view(request, asin):
             product.rating = product_data.get('rating')
             product.review_count = product_data.get('review_count')
             product.price_history = product_data.get('price_history', {})
+            product.rating_history = product_data.get('rating_history', {})
+            product.sales_rank_history = product_data.get('sales_rank_history', {})
+            product.reviews_data = product_data.get('reviews_data', {})
             product.save()
         
         messages.success(request, f'Producto {asin} actualizado exitosamente.')

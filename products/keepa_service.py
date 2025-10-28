@@ -130,6 +130,15 @@ class KeepaService:
                 
                 # Guardar historial completo de precios
                 parsed_data['price_history'] = self.extract_price_history(data)
+                
+                # Extraer historial de calificaciones
+                parsed_data['rating_history'] = self.extract_rating_history(data)
+                
+                # Extraer historial de sales rank
+                parsed_data['sales_rank_history'] = self.extract_sales_rank_history(data)
+                
+                # Extraer datos de reseñas
+                parsed_data['reviews_data'] = self.extract_reviews_data(raw_data)
             else:
                 # Si no hay datos de precios, inicializar con valores por defecto
                 parsed_data['current_price_new'] = None
@@ -336,6 +345,152 @@ class KeepaService:
                 }
         
         return price_history
+    
+    def extract_rating_history(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extrae el historial de calificaciones de los datos raw
+        
+        Args:
+            data: Datos raw de Keepa
+            
+        Returns:
+            Dict con el historial de calificaciones organizado
+        """
+        rating_history = {}
+        
+        # Extraer datos de rating
+        ratings = data.get('RATING', [])
+        rating_times = data.get('RATING_time', [])
+        
+        # Convertir a lista si es array de numpy
+        if hasattr(ratings, 'tolist'):
+            ratings = ratings.tolist()
+        if hasattr(rating_times, 'tolist'):
+            rating_times = rating_times.tolist()
+        
+        # Asegurar que sean listas
+        if not isinstance(ratings, list):
+            ratings = []
+        if not isinstance(rating_times, list):
+            rating_times = []
+        
+        # Procesar datos de rating
+        rating_data = []
+        for t, r in zip(rating_times, ratings):
+            if r != -1:  # -1 = sin dato
+                try:
+                    # Convertir tiempo de Keepa a datetime
+                    if isinstance(t, (int, float)) and t > 0:
+                        date_obj = self._keepa_time_to_datetime(t)
+                        date_str = date_obj.isoformat()
+                    else:
+                        date_str = str(t)
+                except:
+                    date_str = str(t)
+                
+                rating_data.append({
+                    "date": date_str,
+                    "rating": r / 10 if r > 0 else 0  # Keepa devuelve rating * 10
+                })
+        
+        rating_history = {
+            'ratings': rating_data,
+            'formatted_times': [item['date'] for item in rating_data],
+            'values': [item['rating'] for item in rating_data]
+        }
+        
+        return rating_history
+    
+    def extract_sales_rank_history(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extrae el historial de sales rank de los datos raw
+        
+        Args:
+            data: Datos raw de Keepa
+            
+        Returns:
+            Dict con el historial de sales rank organizado
+        """
+        sales_rank_history = {}
+        
+        # Extraer datos de sales rank
+        sales_ranks = data.get('SALES', [])
+        sales_times = data.get('SALES_time', [])
+        
+        # Convertir a lista si es array de numpy
+        if hasattr(sales_ranks, 'tolist'):
+            sales_ranks = sales_ranks.tolist()
+        if hasattr(sales_times, 'tolist'):
+            sales_times = sales_times.tolist()
+        
+        # Asegurar que sean listas
+        if not isinstance(sales_ranks, list):
+            sales_ranks = []
+        if not isinstance(sales_times, list):
+            sales_times = []
+        
+        # Procesar datos de sales rank
+        sales_data = []
+        for t, s in zip(sales_times, sales_ranks):
+            if s != -1:  # -1 = sin dato
+                try:
+                    # Convertir tiempo de Keepa a datetime
+                    if isinstance(t, (int, float)) and t > 0:
+                        date_obj = self._keepa_time_to_datetime(t)
+                        date_str = date_obj.isoformat()
+                    else:
+                        date_str = str(t)
+                except:
+                    date_str = str(t)
+                
+                sales_data.append({
+                    "date": date_str,
+                    "salesRank": int(s) if s > 0 else 0
+                })
+        
+        sales_rank_history = {
+            'sales_ranks': sales_data,
+            'formatted_times': [item['date'] for item in sales_data],
+            'values': [item['salesRank'] for item in sales_data]
+        }
+        
+        return sales_rank_history
+    
+    def extract_reviews_data(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extrae datos de reseñas de los datos raw
+        
+        Args:
+            raw_data: Datos raw de Keepa
+            
+        Returns:
+            Dict con los datos de reseñas organizados
+        """
+        reviews_data = {}
+        
+        # Extraer datos básicos de reseñas
+        review_count = raw_data.get('reviewCount', 0)
+        rating = raw_data.get('rating', 0)
+        
+        # Extraer distribución de calificaciones si está disponible
+        rating_histogram = raw_data.get('ratingHistogram', {})
+        
+        # Procesar distribución de calificaciones
+        rating_distribution = {}
+        if rating_histogram:
+            for star_rating in range(1, 6):
+                count = rating_histogram.get(str(star_rating), 0)
+                if count > 0:
+                    rating_distribution[star_rating] = count
+        
+        reviews_data = {
+            'total_reviews': review_count,
+            'average_rating': rating / 10 if rating > 0 else 0,  # Keepa devuelve rating * 10
+            'rating_distribution': rating_distribution,
+            'has_reviews': review_count > 0
+        }
+        
+        return reviews_data
     
     def search_products(self, search_params: Dict[str, Any]) -> List[str]:
         """

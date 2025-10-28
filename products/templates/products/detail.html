@@ -289,15 +289,7 @@
 
             <div class="stats-grid">
                 <div class="stat-card">
-                    <h3 class="stat-value">{{ product.rating_display }}</h3>
-                    <p class="stat-label">Calificación</p>
-                </div>
-                <div class="stat-card">
-                    <h3 class="stat-value">{{ product.review_count|default:"N/A" }}</h3>
-                    <p class="stat-label">Reseñas</p>
-                </div>
-                <div class="stat-card">
-                    <h3 class="stat-value">{{ product.sales_rank_display }}</h3>
+                    <h3 class="stat-value" id="current-sales-rank">{{ product.sales_rank_display }}</h3>
                     <p class="stat-label">Sales Rank</p>
                 </div>
                 <div class="stat-card">
@@ -380,6 +372,19 @@
                         </div>
                     </div>
                 </div>
+
+            <!-- Sección de Historial de Sales Rank -->
+                <div class="sales-rank-history-section">
+                    <h3 style="color: #333; margin: 2rem 0 1rem 0; font-size: 1.5rem; text-align: center;">📊 Historial de Sales Rank</h3>
+                    <div class="chart-container">
+                        <canvas id="salesRankChart" width="400" height="200"></canvas>
+                        <div id="no-sales-rank-data-message" style="display: none; text-align: center; padding: 2rem; color: #666;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                            <div>No hay datos de historial de sales rank disponibles</div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -515,6 +520,98 @@
                     }
                 });
             }
+
+
+            // Datos del historial de sales rank desde Django
+            const salesRankHistory = {{ sales_rank_history_json|safe }};
+            
+            // Crear gráfica de sales rank
+            if (salesRankHistory && salesRankHistory.values && salesRankHistory.values.length > 0) {
+                const salesRankCtx = document.getElementById('salesRankChart').getContext('2d');
+                const salesRankChart = new Chart(salesRankCtx, {
+                    type: 'line',
+                    data: {
+                        labels: salesRankHistory.formatted_times || [],
+                        datasets: [{
+                            label: 'Sales Rank',
+                            data: salesRankHistory.values || [],
+                            borderColor: '#28a745',
+                            backgroundColor: '#28a74520',
+                            fill: false,
+                            tension: 0.1,
+                            pointRadius: 3,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Evolución de Sales Rank',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                },
+                                color: '#333'
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Fecha',
+                                    font: {
+                                        weight: 'bold'
+                                    }
+                                },
+                                ticks: {
+                                    maxTicksLimit: 10,
+                                    callback: function(value, index, values) {
+                                        if (salesRankHistory.formatted_times && salesRankHistory.formatted_times[index]) {
+                                            const date = new Date(salesRankHistory.formatted_times[index]);
+                                            return date.toLocaleDateString('es-ES', { 
+                                                month: 'short', 
+                                                day: 'numeric' 
+                                            });
+                                        }
+                                        return '';
+                                    }
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Sales Rank',
+                                    font: {
+                                        weight: 'bold'
+                                    }
+                                },
+                                type: 'logarithmic',
+                                ticks: {
+                                    callback: function(value) {
+                                        return '#' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                document.getElementById('salesRankChart').style.display = 'none';
+                document.getElementById('no-sales-rank-data-message').style.display = 'block';
+            }
+
+            // Actualizar el sales rank en el stats grid con el último valor
+            if (salesRankHistory && salesRankHistory.values && salesRankHistory.values.length > 0) {
+                const lastSalesRank = salesRankHistory.values[salesRankHistory.values.length - 1];
+                const salesRankElement = document.getElementById('current-sales-rank');
+                if (salesRankElement && lastSalesRank > 0) {
+                    salesRankElement.textContent = `#${lastSalesRank.toLocaleString()}`;
+                }
+            }
+
         </script>
 
         <style>
@@ -558,6 +655,15 @@
                 display: inline-block;
             }
             
+            .sales-rank-history-section {
+                background: white;
+                padding: 2rem;
+                border-radius: 10px;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+                margin-top: 2rem;
+            }
+            
+            
             @media (max-width: 768px) {
                 .chart-container {
                     height: 300px;
@@ -566,6 +672,7 @@
                 .chart-legend {
                     gap: 1rem;
                 }
+                
             }
         </style>
         </body>
