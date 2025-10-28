@@ -128,8 +128,31 @@
 
         <div class="dashboard-card">
             <h2>¡Bienvenido al Sistema Keepa IA!</h2>
-            <p>Has iniciado sesión correctamente en el sistema de autenticación. Este es un dashboard básico que demuestra que el sistema de login está funcionando correctamente.</p>
-            <p>Desde aquí puedes acceder a todas las funcionalidades del sistema una vez que estén implementadas.</p>
+            <p>Has iniciado sesión correctamente en el sistema de autenticación. Ahora puedes consultar productos de Amazon y analizar sus precios usando la API de Keepa.</p>
+            <p>Desde aquí puedes acceder a todas las funcionalidades del sistema de análisis de productos.</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3 class="stat-number">🔍</h3>
+                <p class="stat-label">Buscar Productos</p>
+                <a href="{% url 'products:search' %}" class="btn btn-primary" style="margin-top: 1rem; display: inline-block; padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 5px;">Buscar por ASIN</a>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-number">📦</h3>
+                <p class="stat-label">Mis Productos</p>
+                <a href="{% url 'products:list' %}" class="btn btn-primary" style="margin-top: 1rem; display: inline-block; padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 5px;">Ver Lista</a>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-number">📊</h3>
+                <p class="stat-label">Análisis de Precios</p>
+                <p style="font-size: 0.9rem; color: #666; margin: 0.5rem 0 0 0;">Historial completo de precios de productos de Amazon</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-number">⚡</h3>
+                <p class="stat-label">API Keepa</p>
+                <p style="font-size: 0.9rem; color: #666; margin: 0.5rem 0 0 0;">Integración con la API oficial de Keepa</p>
+            </div>
         </div>
 
         <div class="stats-grid">

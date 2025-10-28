@@ -24,5 +24,6 @@ def redirect_to_login(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
+    path('products/', include('products.urls')),
     path('', redirect_to_login),  # Redirigir la raíz a login
 ]
