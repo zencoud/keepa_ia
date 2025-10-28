@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Keepa IA</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            color: #333;
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .welcome-text {
+            color: #666;
+            font-size: 1rem;
+        }
+        .btn-logout {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+        .btn-logout:hover {
+            transform: translateY(-2px);
+        }
+        .main-content {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .dashboard-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .dashboard-card h2 {
+            color: #333;
+            margin-top: 0;
+            font-size: 1.5rem;
+        }
+        .dashboard-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin: 0;
+        }
+        .stat-label {
+            color: #666;
+            margin: 0.5rem 0 0 0;
+        }
+        .messages {
+            margin-bottom: 1rem;
+        }
+        .alert {
+            padding: 0.75rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Keepa IA Dashboard</h1>
+        <div class="user-info">
+            <span class="welcome-text">¡Bienvenido, {{ user.username }}!</span>
+            <a href="{% url 'accounts:logout' %}" class="btn-logout">Cerrar Sesión</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="dashboard-card">
+            <h2>¡Bienvenido al Sistema Keepa IA!</h2>
+            <p>Has iniciado sesión correctamente en el sistema de autenticación. Este es un dashboard básico que demuestra que el sistema de login está funcionando correctamente.</p>
+            <p>Desde aquí puedes acceder a todas las funcionalidades del sistema una vez que estén implementadas.</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3 class="stat-number">{{ user.id }}</h3>
+                <p class="stat-label">ID de Usuario</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-number">{{ user.is_superuser|yesno:"Sí,No" }}</h3>
+                <p class="stat-label">Es Superusuario</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-number">{{ user.is_staff|yesno:"Sí,No" }}</h3>
+                <p class="stat-label">Es Staff</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-number">{{ user.is_active|yesno:"Sí,No" }}</h3>
+                <p class="stat-label">Cuenta Activa</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
