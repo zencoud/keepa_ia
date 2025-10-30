@@ -1,0 +1,28 @@
+{{ site_name }} - Alerta de Precio Activada
+===============================================
+
+🎉 ¡ALERTA DE PRECIO ACTIVADA!
+
+Producto: {{ product.title }}
+ASIN: {{ product.asin }}
+{% if product.brand %}Marca: {{ product.brand }}{% endif %}
+
+PRECIO ACTUAL: ${{ current_price_display }}
+Precio Objetivo: ${{ target_price_display }}
+💰 ¡Ahorras ${{ savings_display }}!
+
+Detalles de la Alerta:
+- Tipo de Precio: {{ alert.get_price_type_display }}
+- Frecuencia de Verificación: {{ alert.get_frequency_display }}
+- Fecha de Creación: {{ alert.created_at|date:"d/m/Y H:i" }}
+
+Ver el producto: {{ product_url }}
+
+Esta alerta se ha desactivado automáticamente después de ser disparada.
+Puedes crear una nueva alerta si deseas seguir monitoreando este producto.
+
+Visita {{ site_url }} para más información.
+
+---
+Este email fue enviado automáticamente por {{ site_name }}.
+Si no deseas recibir más notificaciones, puedes desactivar las alertas en tu cuenta.

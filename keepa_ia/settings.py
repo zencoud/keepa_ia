@@ -64,6 +64,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'products.context_processors.notifications_context',
             ],
         },
     },
@@ -135,3 +136,18 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 # Keepa API settings
 KEEPA_API_KEY = config('KEEPA_API_KEY', default='')
+
+# Email settings
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='localhost')
+EMAIL_PORT = config('EMAIL_PORT', default=1025, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=False, cast=bool)
+EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=False, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@keepa-ia.local')
+SERVER_EMAIL = config('SERVER_EMAIL', default='admin@keepa-ia.local')
+
+# Site settings
+SITE_NAME = config('SITE_NAME', default='Keepa IA')
+SITE_URL = config('SITE_URL', default='http://localhost:8000')

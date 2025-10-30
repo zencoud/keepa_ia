@@ -5,9 +5,11 @@ from django.core.paginator import Paginator
 from django.db import transaction
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
+from django.utils import timezone
 import json
-from .models import Product
+from .models import Product, PriceAlert, Notification
 from .keepa_service import KeepaService
+from .notifications import create_system_notification, get_user_unread_notifications_count
 import logging
 
 logger = logging.getLogger(__name__)
@@ -199,3 +201,202 @@ def delete_product_view(request, asin):
     
     context = {'product': product}
     return render(request, 'products/delete_confirm.html', context)
+
+
+# ===== VISTAS PARA ALERTAS DE PRECIO =====
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def create_alert_view(request, asin):
+    """
+    Vista para crear una alerta de precio para un producto
+    GET: Muestra el formulario
+    POST: Procesa la creación de la alerta
+    """
+    product = get_object_or_404(Product, asin=asin)
+    
+    if request.method == 'POST':
+        try:
+            target_price = request.POST.get('target_price')
+            price_type = request.POST.get('price_type', 'new')
+            frequency = int(request.POST.get('frequency', 2))
+            
+            # Validaciones
+            if not target_price:
+                messages.error(request, 'El precio objetivo es requerido.')
+                return render(request, 'products/create_alert.html', {'product': product})
+            
+            try:
+                target_price_cents = int(float(target_price) * 100)
+            except (ValueError, TypeError):
+                messages.error(request, 'El precio objetivo debe ser un número válido.')
+                return render(request, 'products/create_alert.html', {'product': product})
+            
+            if target_price_cents <= 0:
+                messages.error(request, 'El precio objetivo debe ser mayor a 0.')
+                return render(request, 'products/create_alert.html', {'product': product})
+            
+            # Verificar si ya existe una alerta similar
+            existing_alert = PriceAlert.objects.filter(
+                user=request.user,
+                product=product,
+                price_type=price_type,
+                target_price=target_price_cents,
+                is_active=True
+            ).first()
+            
+            if existing_alert:
+                messages.warning(request, 'Ya tienes una alerta activa con estos parámetros.')
+                return redirect('products:detail', asin=asin)
+            
+            # Obtener precio actual para validación
+            current_price = None
+            if price_type == 'new':
+                current_price = product.current_price_new
+            elif price_type == 'amazon':
+                current_price = product.current_price_amazon
+            elif price_type == 'used':
+                current_price = product.current_price_used
+            
+            if current_price and target_price_cents >= current_price:
+                messages.warning(
+                    request, 
+                    f'El precio objetivo (${target_price}) debe ser menor al precio actual '
+                    f'(${current_price/100:.2f}) para que la alerta sea útil.'
+                )
+                return render(request, 'products/create_alert.html', {'product': product})
+            
+            # Crear la alerta
+            with transaction.atomic():
+                alert = PriceAlert.objects.create(
+                    user=request.user,
+                    product=product,
+                    target_price=target_price_cents,
+                    price_type=price_type,
+                    frequency=frequency
+                )
+                
+                # Crear notificación de confirmación
+                create_system_notification(
+                    user=request.user,
+                    title=f"Alerta de Precio Creada",
+                    message=f"Se creó una alerta para {product.title[:50]}... cuando el precio {price_type} baje de ${target_price}",
+                    notification_type='info',
+                    alert=alert
+                )
+            
+            messages.success(
+                request, 
+                f'Alerta de precio creada exitosamente. Te notificaremos cuando el precio '
+                f'{alert.get_price_type_display().lower()} baje de ${target_price}.'
+            )
+            return redirect('products:detail', asin=asin)
+            
+        except Exception as e:
+            logger.error(f"Error creando alerta para {asin}: {e}")
+            messages.error(request, f'Error creando la alerta: {str(e)}')
+            return render(request, 'products/create_alert.html', {'product': product})
+    
+    # GET: Mostrar formulario
+    context = {
+        'product': product,
+        'price_types': PriceAlert.PRICE_TYPE_CHOICES,
+        'frequencies': PriceAlert.FREQUENCY_CHOICES,
+    }
+    return render(request, 'products/create_alert.html', context)
+
+
+@login_required
+def list_alerts_view(request):
+    """
+    Vista para listar las alertas de precio del usuario
+    """
+    alerts = PriceAlert.objects.filter(user=request.user).order_by('-created_at')
+    
+    # Paginación
+    paginator = Paginator(alerts, 10)  # 10 alertas por página
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'alerts': page_obj,
+    }
+    
+    return render(request, 'products/alerts_list.html', context)
+
+
+@login_required
+def delete_alert_view(request, alert_id):
+    """
+    Vista para eliminar/desactivar una alerta de precio
+    """
+    alert = get_object_or_404(PriceAlert, id=alert_id, user=request.user)
+    
+    if request.method == 'POST':
+        alert.is_active = False
+        alert.save()
+        
+        messages.success(request, f'Alerta para {alert.product.title[:50]}... desactivada exitosamente.')
+        return redirect('products:alerts_list')
+    
+    context = {'alert': alert}
+    return render(request, 'products/delete_alert_confirm.html', context)
+
+
+# ===== VISTAS PARA NOTIFICACIONES =====
+
+@login_required
+def notifications_view(request):
+    """
+    Vista para el centro de notificaciones del usuario
+    """
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+    
+    # Paginación
+    paginator = Paginator(notifications, 20)  # 20 notificaciones por página
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'notifications': page_obj,
+    }
+    
+    return render(request, 'products/notifications_center.html', context)
+
+
+@login_required
+def mark_notification_read_view(request, notification_id):
+    """
+    Vista AJAX para marcar una notificación como leída
+    """
+    if request.method == 'POST':
+        try:
+            notification = Notification.objects.get(id=notification_id, user=request.user)
+            notification.is_read = True
+            notification.save()
+            
+            return JsonResponse({
+                'success': True,
+                'unread_count': get_user_unread_notifications_count(request.user)
+            })
+        except Notification.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Notificación no encontrada'})
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'})
+
+
+@login_required
+def mark_all_notifications_read_view(request):
+    """
+    Vista para marcar todas las notificaciones como leídas
+    """
+    if request.method == 'POST':
+        from .notifications import mark_all_notifications_as_read
+        
+        updated_count = mark_all_notifications_as_read(request.user)
+        messages.success(request, f'{updated_count} notificaciones marcadas como leídas.')
+        return redirect('products:notifications')
+    
+    return redirect('products:notifications')

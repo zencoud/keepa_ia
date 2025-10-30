@@ -281,7 +281,8 @@
                         <p class="product-brand" style="color: #999; font-style: italic;">Marca no disponible</p>
                     {% endif %}
                     <div class="product-actions">
-                        <a href="{% url 'products:refresh' product.asin %}" class="btn btn-primary">Actualizar Datos</a>
+                        <a href="{% url 'products:create_alert' product.asin %}" class="btn btn-primary">🔔 Crear Alerta de Precio</a>
+                        <a href="{% url 'products:refresh' product.asin %}" class="btn btn-secondary">Actualizar Datos</a>
                         <a href="{% url 'products:delete' product.asin %}" class="btn btn-danger">Eliminar</a>
                     </div>
                 </div>

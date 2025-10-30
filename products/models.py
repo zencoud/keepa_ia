@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from decimal import Decimal
+from django.utils import timezone
 
 
 class Product(models.Model):
@@ -147,3 +148,173 @@ class Product(models.Model):
         if self.sales_rank_current:
             return f"#{self.sales_rank_current:,}"
         return "N/A"
+
+
+class PriceAlert(models.Model):
+    """Modelo para alertas de precio configuradas por usuarios"""
+    
+    FREQUENCY_CHOICES = [
+        (4, '4 veces al día (cada 6 horas)'),
+        (2, '2 veces al día (cada 12 horas)'),
+        (1, '1 vez al día (cada 24 horas)'),
+    ]
+    
+    PRICE_TYPE_CHOICES = [
+        ('new', 'Precio Nuevo'),
+        ('amazon', 'Precio Amazon'),
+        ('used', 'Precio Usado'),
+    ]
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        help_text="Usuario que crea la alerta"
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        help_text="Producto a monitorear"
+    )
+    target_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Precio objetivo en centavos"
+    )
+    price_type = models.CharField(
+        max_length=10,
+        choices=PRICE_TYPE_CHOICES,
+        default='new',
+        help_text="Tipo de precio a monitorear"
+    )
+    frequency = models.IntegerField(
+        choices=FREQUENCY_CHOICES,
+        default=2,
+        help_text="Frecuencia de verificación"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Si la alerta está activa"
+    )
+    triggered = models.BooleanField(
+        default=False,
+        help_text="Si ya se disparó la alerta"
+    )
+    triggered_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha y hora cuando se disparó la alerta"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Fecha de creación de la alerta"
+    )
+    last_checked = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Última vez que se verificó esta alerta"
+    )
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Alerta de Precio"
+        verbose_name_plural = "Alertas de Precio"
+        unique_together = ['user', 'product', 'price_type', 'target_price']
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.product.asin} - ${self.get_target_price_display()}"
+    
+    def get_target_price_display(self):
+        """Convierte precio objetivo de centavos a formato legible"""
+        return f"{self.target_price / 100:.2f}"
+    
+    def get_price_type_display(self):
+        """Obtiene el display del tipo de precio"""
+        return dict(self.PRICE_TYPE_CHOICES)[self.price_type]
+    
+    def get_frequency_display(self):
+        """Obtiene el display de la frecuencia"""
+        return dict(self.FREQUENCY_CHOICES)[self.frequency]
+    
+    def should_check_now(self):
+        """Determina si la alerta debe verificarse ahora basado en su frecuencia"""
+        if not self.last_checked:
+            return True
+        
+        now = timezone.now()
+        hours_since_last_check = (now - self.last_checked).total_seconds() / 3600
+        
+        if self.frequency == 4:  # Cada 6 horas
+            return hours_since_last_check >= 6
+        elif self.frequency == 2:  # Cada 12 horas
+            return hours_since_last_check >= 12
+        elif self.frequency == 1:  # Cada 24 horas
+            return hours_since_last_check >= 24
+        
+        return False
+
+
+class Notification(models.Model):
+    """Modelo para notificaciones del sistema"""
+    
+    NOTIFICATION_TYPES = [
+        ('price_alert', 'Alerta de Precio'),
+        ('system', 'Sistema'),
+        ('info', 'Información'),
+        ('warning', 'Advertencia'),
+    ]
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        help_text="Usuario destinatario"
+    )
+    alert = models.ForeignKey(
+        PriceAlert,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        help_text="Alerta relacionada (si aplica)"
+    )
+    notification_type = models.CharField(
+        max_length=20,
+        choices=NOTIFICATION_TYPES,
+        default='info',
+        help_text="Tipo de notificación"
+    )
+    title = models.CharField(
+        max_length=200,
+        help_text="Título de la notificación"
+    )
+    message = models.TextField(
+        help_text="Mensaje completo de la notificación"
+    )
+    is_read = models.BooleanField(
+        default=False,
+        help_text="Si la notificación fue leída"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Fecha de creación de la notificación"
+    )
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Notificación"
+        verbose_name_plural = "Notificaciones"
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.title}"
+    
+    def get_type_display(self):
+        """Obtiene el display del tipo de notificación"""
+        return dict(self.NOTIFICATION_TYPES)[self.notification_type]
+    
+    def get_type_icon(self):
+        """Obtiene un icono para el tipo de notificación"""
+        icons = {
+            'price_alert': '💰',
+            'system': '⚙️',
+            'info': 'ℹ️',
+            'warning': '⚠️',
+        }
+        return icons.get(self.notification_type, '📢')
