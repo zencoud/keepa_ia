@@ -27,7 +27,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-62u9a387^=si5)qsy37u*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = ['zencoud.pythonanywhere.com']
+ALLOWED_HOSTS = ['zencoud.pythonanywhere.com', 'localhost', '127.0.0.1']
 
 # Application definition
 
