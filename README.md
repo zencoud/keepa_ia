@@ -2,6 +2,39 @@
 
 Sistema web desarrollado con Django para análisis y seguimiento de precios de productos de Amazon mediante la API de Keepa.
 
+---
+
+## ⚡ Patrón de Mensajes Flash (POST-REDIRECT-GET)
+
+Este proyecto usa el patrón **POST-REDIRECT-GET (PRG)** para mensajes flash, similar a Laravel:
+
+### ❌ NO hacer esto:
+```python
+if error:
+    messages.error(request, 'Error message')
+    return render(request, 'template.html')  # ❌ El mensaje persiste al recargar
+```
+
+### ✅ SIEMPRE hacer esto:
+```python
+if error:
+    messages.error(request, 'Error message')
+    return redirect('view_name')  # ✅ El mensaje se muestra una vez y desaparece
+```
+
+### Renderizar mensajes en templates:
+```django
+{% load messages_tags %}
+{% render_flash_messages %}
+```
+
+**Este patrón asegura que:**
+- ✅ Los mensajes solo se muestran una vez
+- ✅ No aparecen al recargar la página (F5)
+- ✅ Se comportan como los flash messages de Laravel
+
+---
+
 ## 🎨 Línea de Estilo: Glass 2025
 
 ### Filosofía de Diseño
@@ -257,6 +290,48 @@ keepa_ia/
 ├── keepa_ia/          # Configuración principal Django
 └── staticfiles/       # Archivos estáticos compilados
 ```
+
+## 🧩 Estructura de Componentes
+
+### Regla Fundamental: Un Solo Template por Componente
+
+**IMPORTANTE**: Todos los templates de componentes deben estar ÚNICAMENTE en `components/templates/component_name/component_name.html`
+
+### Estructura Correcta
+
+```
+components/
+├── component_name/
+│   ├── __init__.py
+│   └── component.py          # template_name = "component_name/component_name.html"
+│
+└── templates/                # ✅ ÚNICO lugar para templates
+    └── component_name/
+        └── component_name.html
+```
+
+### ❌ NO Crear Archivos Duplicados
+
+**NUNCA** crear templates en:
+- ❌ `components/component_name/component_name.html`
+- ❌ Cualquier otro lugar fuera de `components/templates/`
+
+**SIEMPRE** crear templates en:
+- ✅ `components/templates/component_name/component_name.html`
+
+### Verificación
+
+Para verificar que no hay duplicados:
+
+```bash
+find components -name "*.html" -not -path "*/templates/*" -type f
+```
+
+Este comando debe devolver **0 archivos**.
+
+### Documentación Completa
+
+Ver `components/COMPONENT_STRUCTURE.md` para documentación detallada sobre estructura de componentes.
 
 ## 🔧 Configuración
 

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load messages_tags %}
 
 {% block title %}Buscar Producto - Keepa IA{% endblock %}
 
@@ -10,6 +11,9 @@
 <!-- Main Content -->
 <main class="min-h-screen pb-12">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Messages (se consumen automáticamente al renderizar) -->
+        {% render_flash_messages %}
+        
         <!-- Search Card -->
         <div class="glass-card glass-card-hover mb-8 p-8 animate-fade-in">
             <h2 class="text-3xl font-bold text-gradient mb-6 text-center">Buscar Producto por ASIN</h2>
@@ -34,8 +38,10 @@
                     >
                 </div>
                 
-                <button type="submit" class="btn-primary w-full py-3 text-base">
-                    <span class="inline-block mr-2">🔍</span>
+                <button type="submit" class="btn-primary w-full py-3 text-base flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
                     Buscar Producto
                 </button>
             </form>
@@ -60,12 +66,12 @@
                 ¿Cómo encontrar el ASIN?
             </h4>
             <ul class="list-disc list-inside space-y-2 text-slate-200 ml-4">
-                <li>En la URL del producto de Amazon: <code class="bg-white/10 px-2 py-1 rounded font-mono text-sm text-white">amazon.com/dp/ASIN</code></li>
+                <li>En la URL del producto de Amazon: <code class="bg-white/10 px-2 py-1 rounded-[40px] font-mono text-sm text-white">amazon.com/dp/ASIN</code></li>
                 <li>En la página del producto, en la sección "Detalles del producto"</li>
                 <li>En el código de barras del producto</li>
             </ul>
             
-            <div class="mt-6 p-4 bg-keepa-blue-500/20 rounded-lg border-l-4 border-keepa-blue-500">
+            <div class="mt-6 p-4 bg-keepa-blue-500/20 rounded-[40px] border-l-4 border-keepa-blue-500">
                 <h4 class="text-sm font-bold text-keepa-blue-200 mb-1">Ejemplo de ASIN válido:</h4>
                 <p class="text-keepa-blue-100 font-mono"><code>B08N5WRWNW</code> (Echo Dot de Amazon)</p>
             </div>

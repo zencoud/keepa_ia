@@ -1,0 +1,9 @@
+{% load static %}
+{% if messages %}
+    <div class="mb-6 space-y-2">
+        {% for message in messages %}
+            {% component "alert" variant=message.tags message=message %}{% endcomponent %}
+        {% endfor %}
+    </div>
+{% endif %}
+

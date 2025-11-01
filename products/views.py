@@ -28,12 +28,14 @@ def search_product_view(request):
         
         if not asin:
             messages.error(request, 'Por favor, ingresa un ASIN válido.')
-            return render(request, 'products/search.html')
+            # Patrón POST-REDIRECT-GET: redirigir para que el mensaje se consuma
+            return redirect('products:search')
         
         # Validar formato básico de ASIN (10 caracteres alfanuméricos)
         if len(asin) != 10 or not asin.isalnum():
             messages.error(request, 'El ASIN debe tener exactamente 10 caracteres alfanuméricos.')
-            return render(request, 'products/search.html')
+            # Patrón POST-REDIRECT-GET: redirigir para que el mensaje se consuma
+            return redirect('products:search')
         
         try:
             # Verificar si el producto ya existe en la BD
@@ -50,49 +52,74 @@ def search_product_view(request):
                 
                 if not product_data:
                     messages.error(request, f'No se pudo encontrar el producto con ASIN: {asin}. Verifica que el ASIN sea correcto y que exista en Amazon.')
-                    return render(request, 'products/search.html')
+                    # Patrón POST-REDIRECT-GET: redirigir para que el mensaje se consuma
+                    return redirect('products:search')
                 
                 # Verificar si el producto tiene al menos el ASIN
                 if not product_data.get('asin'):
-                    messages.error(request, f'El producto con ASIN {asin} no tiene datos válidos.')
-                    return render(request, 'products/search.html')
+                    messages.error(request, 'El producto no tiene datos válidos. Por favor, verifica que el ASIN sea correcto.')
+                    # Patrón POST-REDIRECT-GET: redirigir para que el mensaje se consuma
+                    return redirect('products:search')
+                
+                # Verificar que el producto tenga título (requerido)
+                if not product_data.get('title') or not product_data['title'].strip():
+                    messages.error(request, 'No se pudo encontrar información completa del producto. El ASIN puede ser incorrecto o el producto puede no estar disponible en Amazon.')
+                    # Patrón POST-REDIRECT-GET: redirigir para que el mensaje se consuma
+                    return redirect('products:search')
                     
             except ValueError as e:
-                messages.error(request, f'Error de configuración: {str(e)}')
-                return render(request, 'products/search.html')
+                messages.error(request, 'Error de configuración del sistema. Por favor, contacta al administrador.')
+                logger.error(f"Error de configuración Keepa: {e}")
+                # Patrón POST-REDIRECT-GET: redirigir para que el mensaje se consuma
+                return redirect('products:search')
             
             # Guardar producto en la BD
-            with transaction.atomic():
-                product = Product.objects.create(
-                    asin=product_data['asin'],
-                    title=product_data['title'],
-                    brand=product_data.get('brand'),
-                    image_url=product_data.get('image_url'),
-                    color=product_data.get('color'),
-                    binding=product_data.get('binding'),
-                    availability_amazon=product_data.get('availability_amazon', 0),
-                    categories=product_data.get('categories', []),
-                    category_tree=product_data.get('category_tree', []),
-                    current_price_new=product_data.get('current_price_new'),
-                    current_price_amazon=product_data.get('current_price_amazon'),
-                    current_price_used=product_data.get('current_price_used'),
-                    sales_rank_current=product_data.get('sales_rank_current'),
-                    rating=product_data.get('rating'),
-                    review_count=product_data.get('review_count'),
-                    price_history=product_data.get('price_history', {}),
-                    rating_history=product_data.get('rating_history', {}),
-                    sales_rank_history=product_data.get('sales_rank_history', {}),
-                    reviews_data=product_data.get('reviews_data', {}),
-                    queried_by=request.user
-                )
-                
-                messages.success(request, f'Producto {asin} consultado exitosamente.')
-                return redirect('products:detail', asin=asin)
+            try:
+                with transaction.atomic():
+                    product = Product.objects.create(
+                        asin=product_data['asin'],
+                        title=product_data['title'],
+                        brand=product_data.get('brand'),
+                        image_url=product_data.get('image_url'),
+                        color=product_data.get('color'),
+                        binding=product_data.get('binding'),
+                        availability_amazon=product_data.get('availability_amazon', 0),
+                        categories=product_data.get('categories', []),
+                        category_tree=product_data.get('category_tree', []),
+                        current_price_new=product_data.get('current_price_new'),
+                        current_price_amazon=product_data.get('current_price_amazon'),
+                        current_price_used=product_data.get('current_price_used'),
+                        sales_rank_current=product_data.get('sales_rank_current'),
+                        rating=product_data.get('rating'),
+                        review_count=product_data.get('review_count'),
+                        price_history=product_data.get('price_history', {}),
+                        rating_history=product_data.get('rating_history', {}),
+                        sales_rank_history=product_data.get('sales_rank_history', {}),
+                        reviews_data=product_data.get('reviews_data', {}),
+                        queried_by=request.user
+                    )
+                    
+                    messages.success(request, f'Producto consultado exitosamente.')
+                    return redirect('products:detail', asin=asin)
+            except Exception as db_error:
+                logger.error(f"Error guardando producto {asin} en BD: {db_error}")
+                # Si es error de campo requerido, dar mensaje específico
+                if 'cannot be null' in str(db_error) or 'NOT NULL constraint' in str(db_error):
+                    messages.error(request, 'No se encontró información completa del producto. El ASIN puede ser incorrecto o el producto puede no estar disponible en Amazon.')
+                else:
+                    messages.error(request, 'Hubo un problema al guardar el producto. Por favor, intenta de nuevo.')
+                # Patrón POST-REDIRECT-GET: redirigir para que el mensaje se consuma
+                return redirect('products:search')
                 
         except Exception as e:
             logger.error(f"Error en búsqueda de producto {asin}: {e}")
-            messages.error(request, f'Error al consultar el producto: {str(e)}')
-            return render(request, 'products/search.html')
+            # Mensaje amigable sin exponer detalles técnicos
+            if 'cannot be null' in str(e) or 'NOT NULL constraint' in str(e):
+                messages.error(request, 'No se encontró información completa del producto. El ASIN puede ser incorrecto o el producto puede no estar disponible en Amazon.')
+            else:
+                messages.error(request, 'No se pudo consultar el producto. Por favor, verifica que el ASIN sea correcto y que el producto exista en Amazon.')
+            # Patrón POST-REDIRECT-GET: redirigir para que el mensaje se consuma
+            return redirect('products:search')
     
     return render(request, 'products/search.html')
 
@@ -224,17 +251,20 @@ def create_alert_view(request, asin):
             # Validaciones
             if not target_price:
                 messages.error(request, 'El precio objetivo es requerido.')
-                return render(request, 'products/create_alert.html', {'product': product})
+                # Patrón POST-REDIRECT-GET: redirigir para que el mensaje se consuma
+                return redirect('products:create_alert', asin=asin)
             
             try:
                 target_price_cents = int(float(target_price) * 100)
             except (ValueError, TypeError):
                 messages.error(request, 'El precio objetivo debe ser un número válido.')
-                return render(request, 'products/create_alert.html', {'product': product})
+                # Patrón POST-REDIRECT-GET: redirigir para que el mensaje se consuma
+                return redirect('products:create_alert', asin=asin)
             
             if target_price_cents <= 0:
                 messages.error(request, 'El precio objetivo debe ser mayor a 0.')
-                return render(request, 'products/create_alert.html', {'product': product})
+                # Patrón POST-REDIRECT-GET: redirigir para que el mensaje se consuma
+                return redirect('products:create_alert', asin=asin)
             
             # Verificar si ya existe una alerta similar
             existing_alert = PriceAlert.objects.filter(
@@ -264,7 +294,8 @@ def create_alert_view(request, asin):
                     f'El precio objetivo (${target_price}) debe ser menor al precio actual '
                     f'(${current_price/100:.2f}) para que la alerta sea útil.'
                 )
-                return render(request, 'products/create_alert.html', {'product': product})
+                # Patrón POST-REDIRECT-GET: redirigir para que el mensaje se consuma
+                return redirect('products:create_alert', asin=asin)
             
             # Crear la alerta
             with transaction.atomic():

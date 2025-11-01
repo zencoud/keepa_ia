@@ -94,5 +94,14 @@ module.exports = {
     },
   },
   plugins: [],
+  safelist: [
+    'alert-error',
+    'alert-success',
+    'alert-warning',
+    'alert-info',
+    {
+      pattern: /alert-(error|success|warning|info)/,
+    },
+  ],
 }
 

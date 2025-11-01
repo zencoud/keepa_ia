@@ -49,25 +49,37 @@
     @apply shadow-lg shadow-keepa-blue-500/30 bg-white/15;
   }
   
-  /* Alert Variants con border-radius 40px */
+  /* Alert Variants con border-radius 40px - Glass 2025 */
   .alert {
     @apply px-4 py-3 rounded-[40px] border-2 backdrop-blur-sm;
   }
   
   .alert-success {
-    @apply bg-green-50/90 border-green-300 text-green-800;
+    background-color: rgba(16, 185, 129, 0.3);
+    border-color: rgba(52, 211, 153, 0.6);
+    color: rgb(209, 250, 229);
+    box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2), 0 4px 6px -2px rgba(16, 185, 129, 0.2);
   }
   
   .alert-error {
-    @apply bg-red-50/90 border-red-300 text-red-800;
+    background-color: rgba(239, 68, 68, 0.3);
+    border-color: rgba(248, 113, 113, 0.6);
+    color: rgb(254, 226, 226);
+    box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.2), 0 4px 6px -2px rgba(239, 68, 68, 0.2);
   }
   
   .alert-warning {
-    @apply bg-yellow-50/90 border-yellow-300 text-yellow-800;
+    background-color: rgba(234, 179, 8, 0.3);
+    border-color: rgba(251, 191, 36, 0.6);
+    color: rgb(254, 249, 195);
+    box-shadow: 0 10px 15px -3px rgba(234, 179, 8, 0.2), 0 4px 6px -2px rgba(234, 179, 8, 0.2);
   }
   
   .alert-info {
-    @apply bg-blue-50/90 border-blue-300 text-blue-800;
+    background-color: rgba(14, 165, 233, 0.3);
+    border-color: rgba(56, 189, 248, 0.6);
+    color: rgb(224, 242, 254);
+    box-shadow: 0 10px 15px -3px rgba(14, 165, 233, 0.2), 0 4px 6px -2px rgba(14, 165, 233, 0.2);
   }
   
   /* Badge Variants */

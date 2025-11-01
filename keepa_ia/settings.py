@@ -146,6 +146,20 @@ LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
+# Messages framework settings
+from django.contrib.messages import constants as message_constants
+MESSAGE_TAGS = {
+    message_constants.DEBUG: 'debug',
+    message_constants.INFO: 'info',
+    message_constants.SUCCESS: 'success',
+    message_constants.WARNING: 'warning',
+    message_constants.ERROR: 'error',
+}
+
+# Mensajes se consumen automáticamente al iterar, pero configuramos storage
+# para asegurar que se eliminen después de mostrarse una vez
+MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
+
 # Keepa API settings
 KEEPA_API_KEY = config('KEEPA_API_KEY', default='')
 
