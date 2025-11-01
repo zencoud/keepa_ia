@@ -18,4 +18,15 @@ class DashboardCard(component.Component):
     - default: Contenido principal de la card
     """
     template_name = "dashboard_card/dashboard_card.html"
+    
+    def get_context_data(self, title=None, icon_svg=None, badge=None, 
+                         action_url=None, action_text=None, action_class=None):
+        return {
+            'title': title,
+            'icon_svg': icon_svg,
+            'badge': badge,
+            'action_url': action_url,
+            'action_text': action_text,
+            'action_class': action_class,
+        }
 

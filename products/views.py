@@ -206,12 +206,14 @@ def refresh_product_view(request, asin):
             product.save()
         
         messages.success(request, f'Producto {asin} actualizado exitosamente.')
-        return redirect('products:detail', asin=asin)
+        # Redirigir a la lista de productos después de actualizar
+        return redirect('products:list')
         
     except Exception as e:
         logger.error(f"Error actualizando producto {asin}: {e}")
         messages.error(request, f'Error al actualizar el producto: {str(e)}')
-        return redirect('products:detail', asin=asin)
+        # Redirigir a la lista de productos en caso de error
+        return redirect('products:list')
 
 
 @login_required

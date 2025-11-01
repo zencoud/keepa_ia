@@ -133,8 +133,9 @@ class Product(models.Model):
         """Convierte precio de centavos a formato legible"""
         price_field = f'current_price_{price_type}'
         price = getattr(self, price_field)
-        if price:
-            return f"${price / 100:.2f}"
+        if price is not None and price > 0:
+            # Los precios están almacenados como centavos (ej: 2999.00 = $29.99)
+            return f"${float(price) / 100:.2f}"
         return "N/A"
     
     def get_rating_display(self):
@@ -148,6 +149,21 @@ class Product(models.Model):
         if self.sales_rank_current:
             return f"#{self.sales_rank_current:,}"
         return "N/A"
+    
+    def get_absolute_url(self):
+        """Retorna la URL para ver el detalle del producto"""
+        from django.urls import reverse
+        return reverse('products:detail', kwargs={'asin': self.asin})
+    
+    def get_refresh_url(self):
+        """Retorna la URL para actualizar el producto"""
+        from django.urls import reverse
+        return reverse('products:refresh', kwargs={'asin': self.asin})
+    
+    def get_delete_url(self):
+        """Retorna la URL para eliminar el producto"""
+        from django.urls import reverse
+        return reverse('products:delete', kwargs={'asin': self.asin})
 
 
 class PriceAlert(models.Model):
