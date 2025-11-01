@@ -22,5 +22,8 @@ urlpatterns = [
     path('notifications/mark-all-read/', views.mark_all_notifications_read_view, name='mark_all_notifications_read'),
     
     # IA
+    path('detect-document-intent/', views.detect_document_intent_view, name='detect_document_intent'),
+    path('ai-chat/', views.ai_chat_view, name='ai_chat'),
     path('generate-ai-summary/<str:asin>/', views.generate_ai_summary_view, name='generate_ai_summary'),
+    path('generate-document/', views.generate_document_view, name='generate_document'),
 ]

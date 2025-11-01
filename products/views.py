@@ -6,11 +6,13 @@ from django.db import transaction
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
+from io import StringIO
 import json
 from .models import Product, PriceAlert, Notification
 from .keepa_service import KeepaService
 from .openai_service import OpenAIService
+from .document_generator import DocumentGenerator
 from .notifications import create_system_notification, get_user_unread_notifications_count
 import logging
 
@@ -519,6 +521,159 @@ def mark_all_notifications_read_view(request):
 
 @login_required
 @require_http_methods(["POST"])
+def detect_document_intent_view(request):
+    """
+    Vista AJAX para detectar intención de generar documento usando IA
+    """
+    try:
+        data = json.loads(request.body)
+        user_message = data.get('message', '').strip()
+        
+        if not user_message:
+            return JsonResponse({
+                'success': False,
+                'error': 'El mensaje no puede estar vacío'
+            }, status=400)
+        
+        # Detectar intención con OpenAI
+        try:
+            openai_service = OpenAIService()
+            intent_result = openai_service.detect_document_intent(user_message)
+            
+            if intent_result:
+                logger.info(f"Intención de documento detectada para usuario {request.user.username}")
+                return JsonResponse({
+                    'success': True,
+                    'intent': intent_result
+                })
+            else:
+                return JsonResponse({
+                    'success': True,
+                    'intent': None
+                })
+                
+        except ValueError as e:
+            logger.error(f"OpenAI no configurado: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': 'El servicio de IA no está disponible.'
+            }, status=500)
+            
+        except Exception as e:
+            logger.error(f"Error detectando intención: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Error al procesar la solicitud'
+            }, status=500)
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Error en el formato de los datos'
+        }, status=400)
+        
+    except Exception as e:
+        logger.error(f"Error en detect_document_intent_view: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error procesando la solicitud'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def ai_chat_view(request):
+    """
+    Vista AJAX para chat con IA usando datos completos de Keepa
+    """
+    try:
+        # Parsear datos del request
+        data = json.loads(request.body)
+        user_message = data.get('message', '').strip()
+        asin = data.get('asin')  # Opcional, puede ser None
+        conversation_history = data.get('history', [])
+        
+        if not user_message:
+            return JsonResponse({
+                'success': False,
+                'error': 'El mensaje no puede estar vacío'
+            }, status=400)
+        
+        # Preparar datos del producto si hay ASIN
+        product_data = None
+        if asin:
+            try:
+                product = Product.objects.get(asin=asin)
+                product_data = {
+                    'title': product.title,
+                    'brand': product.brand,
+                    'categories': product.categories,
+                    'asin': product.asin,
+                    # PRECIOS
+                    'price_history': product.price_history,
+                    'current_price_new': product.current_price_new,
+                    'current_price_amazon': product.current_price_amazon,
+                    'current_price_used': product.current_price_used,
+                    # VENTAS
+                    'sales_rank_current': product.sales_rank_current,
+                    'sales_rank_history': product.sales_rank_history,
+                    # REPUTACIÓN
+                    'rating': product.rating,
+                    'review_count': product.review_count,
+                    'rating_history': product.rating_history,
+                    'reviews_data': product.reviews_data,
+                }
+            except Product.DoesNotExist:
+                logger.warning(f"Producto {asin} no encontrado para chat")
+                # Continuar sin producto_data
+        
+        # Generar respuesta con OpenAI
+        try:
+            openai_service = OpenAIService()
+            response_text = openai_service.chat_with_product(
+                user_message=user_message,
+                conversation_history=conversation_history,
+                product_data=product_data
+            )
+            
+            logger.info(f"Respuesta de chat generada para usuario {request.user.username}")
+            
+            return JsonResponse({
+                'success': True,
+                'response': response_text,
+                'timestamp': timezone.now().isoformat()
+            })
+            
+        except ValueError as e:
+            logger.error(f"OpenAI no configurado: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': 'El servicio de IA no está disponible en este momento.'
+            }, status=500)
+            
+        except Exception as e:
+            logger.error(f"Error generando respuesta de chat: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Error al procesar tu pregunta. Por favor intenta de nuevo.'
+            }, status=500)
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Error en el formato de los datos'
+        }, status=400)
+        
+    except Exception as e:
+        logger.error(f"Error en ai_chat_view: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error procesando la solicitud'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
 def generate_ai_summary_view(request, asin):
     """
     Vista AJAX para generar resumen de IA bajo demanda
@@ -526,16 +681,25 @@ def generate_ai_summary_view(request, asin):
     try:
         product = get_object_or_404(Product, asin=asin)
         
-        # Preparar datos del producto para OpenAI
+        # Preparar datos COMPLETOS del producto para OpenAI
         product_data = {
             'title': product.title,
+            'brand': product.brand,
+            'categories': product.categories,
+            'asin': product.asin,
+            # PRECIOS - Historial completo
             'price_history': product.price_history,
             'current_price_new': product.current_price_new,
             'current_price_amazon': product.current_price_amazon,
             'current_price_used': product.current_price_used,
+            # VENTAS - Actual + Historial
+            'sales_rank_current': product.sales_rank_current,
+            'sales_rank_history': product.sales_rank_history,
+            # REPUTACIÓN - Actual + Historiales
             'rating': product.rating,
             'review_count': product.review_count,
-            'sales_rank_current': product.sales_rank_current,
+            'rating_history': product.rating_history,
+            'reviews_data': product.reviews_data,
         }
         
         # Generar resumen con OpenAI
@@ -579,6 +743,216 @@ def generate_ai_summary_view(request, asin):
             
     except Exception as e:
         logger.error(f"Error en generate_ai_summary_view para {asin}: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error procesando la solicitud'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def generate_document_view(request):
+    """
+    Vista AJAX para generar documentos (PDF, CSV, TXT, Excel, JSON, Markdown)
+    """
+    try:
+        # Parsear datos del request
+        data = json.loads(request.body)
+        asin = data.get('asin')
+        format_type = data.get('format', 'pdf').lower()  # pdf, csv, txt, xlsx, json, md
+        user_request = data.get('user_request')  # Solicitud específica del usuario
+        
+        if not asin:
+            return JsonResponse({
+                'success': False,
+                'error': 'ASIN es requerido'
+            }, status=400)
+        
+        # Validar formato
+        valid_formats = ['pdf', 'csv', 'txt', 'xlsx', 'json', 'md']
+        if format_type not in valid_formats:
+            return JsonResponse({
+                'success': False,
+                'error': f'Formato no válido. Usa: {", ".join(valid_formats)}'
+            }, status=400)
+        
+        try:
+            product = Product.objects.get(asin=asin)
+        except Product.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Producto no encontrado'
+            }, status=404)
+        
+        # Preparar datos COMPLETOS del producto - ABSOLUTAMENTE TODOS LOS CAMPOS
+        product_data = {
+            # IDENTIFICACIÓN
+            'asin': product.asin,
+            'title': product.title,
+            'brand': product.brand,
+            
+            # CLASIFICACIÓN
+            'categories': product.categories,
+            'category_tree': product.category_tree,
+            'binding': product.binding,
+            
+            # VISUAL
+            'image_url': product.image_url,
+            'color': product.color,
+            
+            # DISPONIBILIDAD
+            'availability_amazon': product.availability_amazon,
+            
+            # PRECIOS ACTUALES
+            'current_price_new': product.current_price_new,
+            'current_price_amazon': product.current_price_amazon,
+            'current_price_used': product.current_price_used,
+            
+            # HISTORIAL COMPLETO DE PRECIOS (sin resumir)
+            'price_history': product.price_history,
+            
+            # VENTAS Y POPULARIDAD
+            'sales_rank_current': product.sales_rank_current,
+            'sales_rank_history': product.sales_rank_history,
+            
+            # REPUTACIÓN Y CALIDAD
+            'rating': product.rating,
+            'review_count': product.review_count,
+            'rating_history': product.rating_history,
+            'reviews_data': product.reviews_data,
+            
+            # METADATA
+            'last_updated': product.last_updated.isoformat() if product.last_updated else None,
+            'created_at': product.created_at.isoformat() if product.created_at else None,
+            'queried_by': product.queried_by.username if product.queried_by else None,
+        }
+        
+        # FLUJO DE DOBLE FILTRADO CON IA
+        # Solo aplicar filtros si hay user_request (solicitud en lenguaje natural)
+        if user_request:
+            try:
+                openai_service = OpenAIService()
+                
+                # PASO 1: Detectar intención de documento
+                logger.info(f"[FLUJO] Iniciando doble filtrado para: '{user_request}'")
+                intent_result = openai_service.detect_document_intent(user_request)
+                
+                if not intent_result:
+                    logger.warning(f"[FLUJO] PASO 1 falló - No se detectó intención de documento")
+                    # Si no detecta intención, generar igual (por compatibilidad)
+                else:
+                    logger.info(f"[FLUJO] ✓ PASO 1 aprobado - Intención detectada: {intent_result}")
+                
+                # PASO 2: Confirmar con contexto del producto
+                confirmation = openai_service.confirm_document_generation(user_request, product_data)
+                
+                if not confirmation:
+                    logger.warning(f"[FLUJO] PASO 2 falló - Generación NO confirmada")
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'No se pudo confirmar la intención de generar un documento. Por favor, reformula tu solicitud.'
+                    }, status=400)
+                
+                logger.info(f"[FLUJO] ✓ PASO 2 aprobado - Generación confirmada")
+                logger.info(f"[FLUJO] Campos a incluir: {confirmation.get('include_fields', {})}")
+                logger.info(f"[FLUJO] Enfoque: {confirmation.get('user_focus', 'N/A')}")
+                
+                # PASO 3: Generar contenido con TODOS los datos (el filtro ya determinó qué incluir)
+                logger.info(f"[FLUJO] Iniciando PASO 3 - Generación de contenido Markdown")
+                markdown_content = openai_service.generate_document_content(product_data, user_request=user_request)
+                content = markdown_content
+                logger.info(f"[FLUJO] ✓ PASO 3 completado - Contenido generado ({len(markdown_content)} caracteres)")
+                
+            except Exception as e:
+                logger.error(f"[FLUJO] Error en flujo de doble filtrado: {e}")
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Error en el proceso de generación del documento'
+                }, status=500)
+        else:
+            # Sin user_request, generar contenido directo (flujo legacy)
+            try:
+                openai_service = OpenAIService()
+                logger.info(f"[FLUJO] Generación directa sin filtros (no hay user_request)")
+                markdown_content = openai_service.generate_document_content(product_data, user_request=user_request)
+                content = markdown_content
+                        
+            except Exception as e:
+                logger.error(f"Error generando contenido con OpenAI: {e}")
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Error generando el contenido del documento'
+                }, status=500)
+        
+        # Generar documento en el formato solicitado
+        try:
+            doc_generator = DocumentGenerator()
+            
+            # Nombre del archivo
+            safe_title = "".join(c for c in product.title[:30] if c.isalnum() or c in (' ', '-', '_')).strip()
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            
+            if format_type == 'pdf':
+                buffer = doc_generator.generate_pdf(content, product_data)
+                filename = f"Keepa_Analysis_{safe_title}_{timestamp}.pdf"
+                content_type = 'application/pdf'
+                
+            elif format_type == 'csv':
+                buffer = doc_generator.generate_csv_from_markdown(content, product_data)
+                filename = f"Keepa_Analysis_{safe_title}_{timestamp}.csv"
+                content_type = 'text/csv'
+                
+            elif format_type == 'txt':
+                buffer = doc_generator.generate_txt_from_markdown(content, product_data)
+                filename = f"Keepa_Analysis_{safe_title}_{timestamp}.txt"
+                content_type = 'text/plain'
+                
+            elif format_type == 'xlsx':
+                buffer = doc_generator.generate_excel_from_markdown(content, product_data)
+                filename = f"Keepa_Analysis_{safe_title}_{timestamp}.xlsx"
+                content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                
+            elif format_type == 'json':
+                buffer = doc_generator.generate_json_from_markdown(content, product_data)
+                filename = f"Keepa_Analysis_{safe_title}_{timestamp}.json"
+                content_type = 'application/json'
+                
+            elif format_type == 'md':
+                # Markdown directo - solo agregar metadata
+                output = StringIO()
+                output.write(f"# Keepa AI - Análisis de Producto\n\n")
+                output.write(f"**Generado:** {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n")
+                output.write(f"**Producto:** {product_data.get('title', 'N/A')} (ASIN: {product_data.get('asin', 'N/A')})\n\n")
+                output.write("---\n\n")
+                output.write(content)
+                buffer = output
+                filename = f"Keepa_Analysis_{safe_title}_{timestamp}.md"
+                content_type = 'text/markdown'
+            
+            # Crear respuesta con el archivo
+            from django.http import HttpResponse
+            response = HttpResponse(buffer.read(), content_type=content_type)
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            logger.info(f"Documento {format_type.upper()} generado exitosamente para {asin}")
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Error generando documento {format_type}: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': f'Error generando el documento: {str(e)}'
+            }, status=500)
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Error en el formato de los datos'
+        }, status=400)
+        
+    except Exception as e:
+        logger.error(f"Error en generate_document_view: {e}")
         return JsonResponse({
             'success': False,
             'error': 'Error procesando la solicitud'

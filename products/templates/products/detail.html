@@ -10,7 +10,7 @@
 {% component "header" %}{% endcomponent %}
 
 <!-- Main Content -->
-<main class="min-h-screen pb-12">
+<main class="min-h-screen pb-12" data-product-asin="{{ product.asin }}">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Breadcrumbs -->
         {% component "breadcrumbs" items=breadcrumbs %}{% endcomponent %}
@@ -606,7 +606,7 @@
     const ratingCtx = document.getElementById('ratingChart');
     const ratingHistory = {{ rating_history_json|safe }};
     
-    const ratingData = ratingHistory.values || [];
+    const ratingData = (ratingHistory.values || []).map(r => r * 10);
     const ratingTimes = ratingHistory.formatted_times || [];
     
     new Chart(ratingCtx, {

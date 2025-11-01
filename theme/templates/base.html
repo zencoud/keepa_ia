@@ -18,6 +18,655 @@
 <body class="antialiased bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 min-h-screen text-white" style="background-attachment: fixed;">
     {% block content %}{% endblock %}
     
+    <!-- Keepa AI Chat Assistant -->
+    {% if user.is_authenticated %}
+    <!-- Botón Flotante (FAB) -->
+    <button id="ai-chat-fab" class="fixed bottom-6 right-6 w-16 h-16 rounded-full shadow-2xl transition-all duration-300 hover:scale-110 hover:shadow-purple-500/50 z-50 flex items-center justify-center group" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.8), rgba(99, 102, 241, 0.8)); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);">
+        <svg class="w-8 h-8 text-white group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
+        <span class="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-xs font-bold animate-pulse">✨</span>
+        
+        <!-- Tooltip -->
+        <div class="absolute bottom-full right-0 mb-2 px-3 py-2 bg-slate-900/90 backdrop-blur-sm text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none" style="border: 1px solid rgba(255,255,255,0.1);">
+            Pregunta a Keepa AI
+        </div>
+    </button>
+    
+    <!-- Modal de Chat -->
+    <div id="ai-chat-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px);">
+        <div class="relative w-full max-w-2xl h-[700px] max-h-[90vh] flex flex-col animate-scale-in" style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px); border-radius: 40px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
+            
+            <!-- Header -->
+            <div class="flex items-center justify-between p-6 border-b border-white/10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-white">Keepa AI Assistant</h2>
+                        <p class="text-xs text-slate-400">Pregunta lo que quieras sobre el producto</p>
+                    </div>
+                </div>
+                <button id="close-chat-btn" class="w-10 h-10 rounded-full hover:bg-white/10 transition-colors flex items-center justify-center">
+                    <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Messages Area -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4" style="scrollbar-width: thin; scrollbar-color: rgba(139, 92, 246, 0.5) transparent;">
+                <!-- Mensaje de bienvenida -->
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex-shrink-0 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                    </div>
+                    <div class="flex-1 bg-white/5 border border-white/10 rounded-3xl rounded-tl-sm p-4">
+                        <p class="text-white text-sm leading-relaxed">¡Hola! 👋 Soy Keepa AI. Puedo ayudarte a analizar el historial de precios, tendencias y tomar mejores decisiones de compra. ¿Qué te gustaría saber?</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sugerencias de preguntas -->
+            <div id="suggested-questions" class="px-6 pb-4 flex flex-wrap gap-2">
+                <button class="suggestion-pill text-xs px-3 py-2 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:border-purple-500/50 transition-all">
+                    ¿Es buen momento para comprar?
+                </button>
+                <button class="suggestion-pill text-xs px-3 py-2 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:border-purple-500/50 transition-all">
+                    ¿Cuál es el precio más bajo histórico?
+                </button>
+                <button class="suggestion-pill text-xs px-3 py-2 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:border-purple-500/50 transition-all">
+                    Resume los últimos 3 meses
+                </button>
+                <button class="suggestion-pill text-xs px-3 py-2 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:border-purple-500/50 transition-all">
+                    ¿Vale la pena por este precio?
+                </button>
+                <button class="suggestion-pill text-xs px-3 py-2 rounded-full bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 hover:border-purple-500/50 transition-all font-semibold">
+                    📄 Genera un PDF con el análisis
+                </button>
+            </div>
+            
+            <!-- Input Area -->
+            <div class="p-6 pt-0">
+                <div class="flex gap-3">
+                    <textarea 
+                        id="chat-input" 
+                        rows="1" 
+                        placeholder="Pregunta lo que quieras..." 
+                        class="flex-1 bg-white/5 border border-white/10 rounded-3xl px-6 py-4 text-white placeholder-slate-400 resize-none focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                        style="max-height: 120px;"
+                    ></textarea>
+                    <button id="send-chat-btn" class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                    </button>
+                </div>
+                <p class="text-xs text-slate-500 mt-2 text-center">Presiona Enter para enviar, Shift+Enter para nueva línea</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- CSS Adicional para el Chat -->
+    <style>
+        @keyframes scale-in {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        .animate-scale-in {
+            animation: scale-in 0.3s ease-out;
+        }
+        #chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        #chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(139, 92, 246, 0.5);
+            border-radius: 4px;
+        }
+        #chat-messages::-webkit-scrollbar-thumb:hover {
+            background: rgba(139, 92, 246, 0.7);
+        }
+        .user-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px 20px 5px 20px;
+        }
+        .ai-message {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px 20px 20px 5px;
+        }
+    </style>
+    
+    <!-- JavaScript del Chat -->
+    <script>
+    (function() {
+        // Solo ejecutar si el usuario está autenticado
+        if (!document.getElementById('ai-chat-fab')) return;
+        
+        // Variables del chat
+        const chatFab = document.getElementById('ai-chat-fab');
+        const chatModal = document.getElementById('ai-chat-modal');
+        const closeChatBtn = document.getElementById('close-chat-btn');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-chat-btn');
+        const chatMessages = document.getElementById('chat-messages');
+        const suggestedQuestions = document.querySelectorAll('.suggestion-pill');
+        
+        // Detectar ASIN del producto actual
+        const productElement = document.querySelector('[data-product-asin]');
+        const currentASIN = productElement ? productElement.dataset.productAsin : null;
+        
+        // Debug (remover en producción si no es necesario)
+        if (!currentASIN) {
+            console.warn('Keepa AI Chat: No se detectó ASIN del producto. Asegúrate de estar en una página de detalle de producto.');
+        }
+        
+        // Historial de conversación (en memoria, se limpia al cerrar)
+        let conversationHistory = [];
+        
+        // Función para obtener CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // Abrir modal
+        function openChat() {
+            chatModal.classList.remove('hidden');
+            chatModal.classList.add('flex');
+            chatInput.focus();
+        }
+        
+        // Cerrar modal
+        function closeChat() {
+            chatModal.classList.add('hidden');
+            chatModal.classList.remove('flex');
+        }
+        
+        // Auto-scroll al último mensaje
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Agregar mensaje al chat
+        function addMessage(content, isUser = false, withTyping = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'flex items-start gap-3';
+            
+            if (isUser) {
+                messageDiv.innerHTML = `
+                    <div class="flex-1"></div>
+                    <div class="max-w-[80%] user-message p-4">
+                        <p class="text-white text-sm leading-relaxed">${escapeHtml(content)}</p>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex-shrink-0 flex items-center justify-center text-white font-semibold text-sm">
+                        ${getUserInitial()}
+                    </div>
+                `;
+                chatMessages.appendChild(messageDiv);
+                scrollToBottom();
+            } else {
+                // Para mensajes de IA, crear estructura vacía primero
+                const messageId = 'ai-msg-' + Date.now();
+                messageDiv.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex-shrink-0 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                    </div>
+                    <div class="flex-1 ai-message p-4">
+                        <p id="${messageId}" class="text-white text-sm leading-relaxed"></p>
+                        <span id="${messageId}-cursor" class="inline-block w-0.5 h-4 bg-purple-400 animate-pulse ml-1" style="display: ${withTyping ? 'inline-block' : 'none'};"></span>
+                    </div>
+                `;
+                chatMessages.appendChild(messageDiv);
+                scrollToBottom();
+                
+                // Si es con efecto typing, animarlo
+                if (withTyping) {
+                    typeText(content, messageId);
+                } else {
+                    // Si no, mostrar inmediatamente
+                    document.getElementById(messageId).textContent = content;
+                }
+            }
+        }
+        
+        // Efecto de typing animado
+        function typeText(text, elementId) {
+            const element = document.getElementById(elementId);
+            const cursor = document.getElementById(elementId + '-cursor');
+            if (!element) return;
+            
+            let currentIndex = 0;
+            const typingSpeed = 15; // milisegundos por carácter
+            
+            function typeNextCharacter() {
+                if (currentIndex < text.length) {
+                    element.textContent += text[currentIndex];
+                    currentIndex++;
+                    scrollToBottom(); // Auto-scroll mientras escribe
+                    setTimeout(typeNextCharacter, typingSpeed);
+                } else {
+                    // Terminar - ocultar cursor
+                    if (cursor) {
+                        setTimeout(() => {
+                            cursor.style.display = 'none';
+                        }, 500);
+                    }
+                }
+            }
+            
+            setTimeout(typeNextCharacter, 200);
+        }
+        
+        // Agregar mensaje de loading
+        function addLoadingMessage() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'flex items-start gap-3';
+            messageDiv.id = 'loading-message';
+            messageDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex-shrink-0 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                </div>
+                <div class="flex-1 ai-message p-4">
+                    <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0ms;"></div>
+                        <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 150ms;"></div>
+                        <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 300ms;"></div>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(messageDiv);
+            scrollToBottom();
+        }
+        
+        // Remover mensaje de loading
+        function removeLoadingMessage() {
+            const loadingMsg = document.getElementById('loading-message');
+            if (loadingMsg) {
+                loadingMsg.remove();
+            }
+        }
+        
+        // Obtener inicial del usuario
+        function getUserInitial() {
+            const username = '{{ user.username|default:"U" }}';
+            return username.charAt(0).toUpperCase();
+        }
+        
+        // Escapar HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Detectar solicitud de documento en mensaje
+        function detectDocumentRequest(message) {
+            const lowerMessage = message.toLowerCase();
+            const documentKeywords = ['genera', 'generar', 'crea', 'crear', 'descarga', 'descargar', 'exporta', 'exportar', 'haz', 'hacer'];
+            const documentWords = [
+                'documento', 'documentos', 'doc', 'docs',
+                'archivo', 'archivos',
+                'reporte', 'reportes', 'report',
+                'informe', 'informes',
+                'pdf', 'excel', 'xlsx', 'csv', 'txt', 'json', 'markdown', 'md'
+            ];
+            const formatKeywords = {
+                'pdf': ['pdf'],
+                'xlsx': ['excel', 'xlsx', 'hoja de cálculo', 'hoja de calculo', 'spreadsheet'],
+                'csv': ['csv'],
+                'txt': ['txt', 'texto', 'text'],
+                'json': ['json'],
+                'md': ['markdown', 'md']
+            };
+            
+            // Verificar si es una solicitud de documento
+            const hasDocumentKeyword = documentKeywords.some(keyword => lowerMessage.includes(keyword));
+            const hasDocumentWord = documentWords.some(word => lowerMessage.includes(word));
+            
+            if (hasDocumentKeyword && hasDocumentWord) {
+                // Detectar formato
+                for (const [format, keywords] of Object.entries(formatKeywords)) {
+                    if (keywords.some(keyword => lowerMessage.includes(keyword))) {
+                        return format;
+                    }
+                }
+                // Si no especifica formato, asumir PDF
+                return 'pdf';
+            }
+            
+            return null;
+        }
+        
+        // Detectar intención de documento usando IA
+        async function detectDocumentIntentAI(message) {
+            try {
+                const response = await fetch('/products/detect-document-intent/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        message: message
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.intent) {
+                        return data.intent; // {intent: "document", format: "pdf" o null, specific_request: "..."}
+                    }
+                }
+            } catch (error) {
+                console.error('Error detectando intención con IA:', error);
+            }
+            return null;
+        }
+        
+        // Enviar mensaje
+        async function sendMessage(message) {
+            if (!message.trim()) return;
+            
+            // PRIMERO: Usar IA para detectar intención de documento (más preciso)
+            // Fallback a detección manual si falla
+            let documentIntent = null;
+            
+            try {
+                documentIntent = await detectDocumentIntentAI(message);
+            } catch (error) {
+                console.warn('Detección por IA falló, usando fallback manual:', error);
+            }
+            
+            // Fallback a detección manual
+            if (!documentIntent) {
+                const manualFormat = detectDocumentRequest(message);
+                if (manualFormat) {
+                    documentIntent = {
+                        intent: 'document',
+                        format: manualFormat,
+                        specific_request: message
+                    };
+                }
+            }
+            
+            if (documentIntent && documentIntent.intent === 'document') {
+                console.log('Keepa AI: Solicitud de documento detectada:', documentIntent, 'ASIN:', currentASIN);
+                
+                if (!currentASIN) {
+                    // No hay producto seleccionado
+                    addMessage(message, true);
+                    addMessage('Para generar documentos, por favor ve a la página de un producto específico. El chat necesita conocer el ASIN del producto para generar el análisis.', false, false);
+                    chatInput.value = '';
+                    return;
+                }
+                
+                addMessage(message, true);
+                
+                if (documentIntent.format) {
+                    // Formato específico detectado: descargar directamente
+                    addMessage(`Generando documento ${documentIntent.format.toUpperCase()}... un momento por favor.`, false, false);
+                    downloadDocument(documentIntent.format, documentIntent.specific_request || message);
+                } else {
+                    // No especificó formato: mostrar opciones
+                    addMessage('¡Perfecto! Puedo generar un reporte completo en varios formatos. Elige el que prefieras:', false, false);
+                    addDocumentButtons();
+                }
+                
+                // Limpiar input
+                chatInput.value = '';
+                return; // IMPORTANTE: Salir aquí, no enviar al chat normal
+            }
+            
+            // Si no es solicitud de documento, continuar con el chat normal
+            // Agregar mensaje del usuario
+            addMessage(message, true);
+            conversationHistory.push({role: 'user', content: message});
+            
+            // Limpiar input y deshabilitar
+            chatInput.value = '';
+            chatInput.disabled = true;
+            sendBtn.disabled = true;
+            
+            // Mostrar loading
+            addLoadingMessage();
+            
+            try {
+                const response = await fetch('/products/ai-chat/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        asin: currentASIN,
+                        history: conversationHistory.slice(-10)  // Últimos 10 mensajes
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Remover loading
+                removeLoadingMessage();
+                
+                if (data.success) {
+                    // Agregar respuesta de la IA con efecto de typing
+                    addMessage(data.response, false, true);
+                    conversationHistory.push({role: 'assistant', content: data.response});
+                } else {
+                    // Mostrar error (sin typing)
+                    addMessage('Lo siento, hubo un error: ' + (data.error || 'Intenta de nuevo.'), false, false);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                removeLoadingMessage();
+                addMessage('Lo siento, no pude conectarme con el servidor. Por favor intenta de nuevo.', false, false);
+            } finally {
+                // Habilitar input
+                chatInput.disabled = false;
+                sendBtn.disabled = false;
+                chatInput.focus();
+            }
+        }
+        
+        // Event listeners
+        chatFab.addEventListener('click', openChat);
+        closeChatBtn.addEventListener('click', closeChat);
+        
+        // Cerrar al hacer clic fuera del modal
+        chatModal.addEventListener('click', (e) => {
+            if (e.target === chatModal) {
+                closeChat();
+            }
+        });
+        
+        // Cerrar con ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !chatModal.classList.contains('hidden')) {
+                closeChat();
+            }
+        });
+        
+        // Enviar con botón
+        sendBtn.addEventListener('click', () => {
+            const message = chatInput.value.trim();
+            if (message) {
+                sendMessage(message);
+            }
+        });
+        
+        // Enviar con Enter (Shift+Enter para nueva línea)
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                const message = chatInput.value.trim();
+                if (message) {
+                    sendMessage(message);
+                }
+            }
+        });
+        
+        // Auto-resize del textarea
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+        
+        // Preguntas sugeridas
+        suggestedQuestions.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const question = btn.textContent.trim();
+                chatInput.value = question;
+                sendMessage(question);
+            });
+        });
+        
+        // Agregar botones de descarga de documentos
+        function addDocumentButtons() {
+            if (!currentASIN) return;
+            
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'flex items-start gap-3 mt-2';
+            buttonContainer.innerHTML = `
+                <div class="w-8 h-8 flex-shrink-0"></div>
+                <div class="flex-1 flex flex-wrap gap-2">
+                    <button class="doc-download-btn text-xs px-3 py-2 rounded-full bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 text-red-300 hover:bg-red-500/30 transition-all" data-format="pdf">
+                        📄 Descargar PDF
+                    </button>
+                    <button class="doc-download-btn text-xs px-3 py-2 rounded-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30 transition-all" data-format="xlsx">
+                        📊 Descargar Excel
+                    </button>
+                    <button class="doc-download-btn text-xs px-3 py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 transition-all" data-format="csv">
+                        📋 Descargar CSV
+                    </button>
+                    <button class="doc-download-btn text-xs px-3 py-2 rounded-full bg-gradient-to-r from-purple-500/20 to-violet-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 transition-all" data-format="txt">
+                        📝 Descargar TXT
+                    </button>
+                    <button class="doc-download-btn text-xs px-3 py-2 rounded-full bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/30 transition-all" data-format="json">
+                        🔧 Descargar JSON
+                    </button>
+                    <button class="doc-download-btn text-xs px-3 py-2 rounded-full bg-gradient-to-r from-slate-500/20 to-gray-500/20 border border-slate-500/30 text-slate-300 hover:bg-slate-500/30 transition-all" data-format="md">
+                        📖 Descargar Markdown
+                    </button>
+                </div>
+            `;
+            
+            chatMessages.appendChild(buttonContainer);
+            scrollToBottom();
+            
+            // Agregar event listeners a los botones
+            buttonContainer.querySelectorAll('.doc-download-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    downloadDocument(btn.dataset.format);
+                });
+            });
+        }
+        
+        // Descargar documento
+        async function downloadDocument(format, userRequest = null) {
+            if (!currentASIN) {
+                addMessage('Por favor, ve a la página de un producto para generar documentos.', false, false);
+                return;
+            }
+            
+            // Deshabilitar todos los botones de descarga
+            document.querySelectorAll('.doc-download-btn').forEach(btn => {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+            });
+            
+            // Mostrar loading
+            addLoadingMessage();
+            
+            try {
+                const response = await fetch('/products/generate-document/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        asin: currentASIN,
+                        format: format,
+                        user_request: userRequest  // Pasar la solicitud del usuario
+                    })
+                });
+                
+                removeLoadingMessage();
+                
+                if (response.ok) {
+                    // Descargar el archivo
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    
+                    // Obtener nombre del archivo del header
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = `Keepa_Analysis.${format}`;
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                        if (filenameMatch) {
+                            filename = filenameMatch[1];
+                        }
+                    }
+                    
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    addMessage(`✅ Documento ${format.toUpperCase()} descargado exitosamente.`, false, false);
+                } else {
+                    const errorData = await response.json();
+                    addMessage(`❌ Error: ${errorData.error || 'No se pudo generar el documento.'}`, false, false);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                removeLoadingMessage();
+                addMessage('❌ Error al generar el documento. Por favor intenta de nuevo.', false, false);
+            } finally {
+                // Re-habilitar botones
+                document.querySelectorAll('.doc-download-btn').forEach(btn => {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                });
+            }
+        }
+    })();
+    </script>
+    
     {% block extra_js %}{% endblock %}
 </body>
 </html>
