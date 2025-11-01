@@ -129,20 +129,53 @@
             </div>
         </div>
         
-        <!-- Price History Chart -->
-        {% if product.price_history %}
-        <div class="glass-card mb-8 p-6">
-            <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
-                <svg class="w-6 h-6 mr-2 text-keepa-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                </svg>
-                Historial de Precios
-            </h2>
-            <div class="bg-white/5 rounded-[40px] p-6">
-                <canvas id="priceChart" class="w-full" height="100"></canvas>
+        <!-- Charts Grid -->
+        <div class="grid gap-8 mb-8">
+            <!-- Price History Chart -->
+            {% if product.price_history %}
+            <div class="glass-card p-6">
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-keepa-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                    </svg>
+                    Historial de Precios
+                </h2>
+                <div class="bg-white/5 rounded-[40px] p-6" style="height: 400px;">
+                    <canvas id="priceChart"></canvas>
+                </div>
             </div>
+            {% endif %}
+            
+            <!-- Sales Rank History Chart -->
+            {% if product.sales_rank_history %}
+            <div class="glass-card p-6">
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                    Historial de Sales Rank
+                </h2>
+                <div class="bg-white/5 rounded-[40px] p-6" style="height: 400px;">
+                    <canvas id="salesRankChart"></canvas>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Rating History Chart -->
+            {% if product.rating_history %}
+            <div class="glass-card p-6">
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-keepa-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                    Historial de Calificaciones
+                </h2>
+                <div class="bg-white/5 rounded-[40px] p-6" style="height: 400px;">
+                    <canvas id="ratingChart"></canvas>
+                </div>
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
         
         <!-- Additional Info -->
         <div class="grid md:grid-cols-2 gap-6">
@@ -192,50 +225,112 @@
 {% endblock %}
 
 {% block extra_js %}
-{% if product.price_history %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const ctx = document.getElementById('priceChart');
+    // Configuración común para todas las gráficas
+    const commonChartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        },
+        plugins: {
+            legend: {
+                labels: {
+                    color: 'rgb(226, 232, 240)',
+                    font: {
+                        size: 12
+                    }
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: 'rgb(226, 232, 240)',
+                bodyColor: 'rgb(226, 232, 240)',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                borderWidth: 1
+            }
+        },
+        scales: {
+            x: {
+                ticks: {
+                    color: 'rgb(148, 163, 184)',
+                    maxRotation: 45,
+                    minRotation: 45,
+                    maxTicksLimit: 10
+                },
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.1)'
+                }
+            }
+        }
+    };
+
+    {% if product.price_history %}
+    // Gráfica de Precio
+    const priceCtx = document.getElementById('priceChart');
     const priceHistory = {{ price_history_json|safe }};
     
-    // Preparar datos para el gráfico
     const newPrices = priceHistory.NEW || {};
     const amazonPrices = priceHistory.AMAZON || {};
+    const usedPrices = priceHistory.USED || {};
     
-    new Chart(ctx, {
+    // Combinar todos los precios para calcular rango
+    const allPrices = [
+        ...(newPrices.prices || []).map(p => p / 100),
+        ...(amazonPrices.prices || []).map(p => p / 100),
+        ...(usedPrices.prices || []).map(p => p / 100)
+    ].filter(p => p > 0);
+    
+    const minPrice = Math.min(...allPrices);
+    const maxPrice = Math.max(...allPrices);
+    const priceRange = maxPrice - minPrice;
+    const priceMin = Math.max(0, minPrice - (priceRange * 0.1));
+    const priceMax = maxPrice + (priceRange * 0.1);
+    
+    new Chart(priceCtx, {
         type: 'line',
         data: {
-            labels: newPrices.formatted_times || [],
+            labels: newPrices.formatted_times || amazonPrices.formatted_times || [],
             datasets: [
                 {
                     label: 'Precio Nuevo',
                     data: (newPrices.prices || []).map(p => p / 100),
                     borderColor: 'rgb(59, 130, 246)',
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    tension: 0.4
+                    tension: 0.1,
+                    stepped: 'before',
+                    borderWidth: 2
                 },
                 {
                     label: 'Precio Amazon',
                     data: (amazonPrices.prices || []).map(p => p / 100),
                     borderColor: 'rgb(245, 158, 11)',
                     backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                    tension: 0.4
+                    tension: 0.1,
+                    stepped: 'before',
+                    borderWidth: 2
+                },
+                {
+                    label: 'Precio Usado',
+                    data: (usedPrices.prices || []).map(p => p / 100),
+                    borderColor: 'rgb(34, 197, 94)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    tension: 0.1,
+                    stepped: 'before',
+                    borderWidth: 2
                 }
             ]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    labels: {
-                        color: 'rgb(226, 232, 240)'
-                    }
-                }
-            },
+            ...commonChartOptions,
             scales: {
+                ...commonChartOptions.scales,
                 y: {
                     beginAtZero: false,
+                    min: priceMin,
+                    max: priceMax,
                     ticks: {
                         color: 'rgb(148, 163, 184)',
                         callback: function(value) {
@@ -245,12 +340,106 @@
                     grid: {
                         color: 'rgba(255, 255, 255, 0.1)'
                     }
-                },
-                x: {
+                }
+            }
+        }
+    });
+    {% endif %}
+    
+    {% if product.sales_rank_history %}
+    // Gráfica de Sales Rank
+    const salesRankCtx = document.getElementById('salesRankChart');
+    const salesRankHistory = {{ sales_rank_history_json|safe }};
+    
+    const salesRankData = salesRankHistory.values || [];
+    const salesRankTimes = salesRankHistory.formatted_times || [];
+    
+    // Calcular rango para Sales Rank (nota: menor es mejor)
+    const validSalesRanks = salesRankData.filter(s => s > 0);
+    if (validSalesRanks.length > 0) {
+        const minSalesRank = Math.min(...validSalesRanks);
+        const maxSalesRank = Math.max(...validSalesRanks);
+        const salesRankRange = maxSalesRank - minSalesRank;
+        const salesRankMin = Math.max(0, minSalesRank - (salesRankRange * 0.1));
+        const salesRankMax = maxSalesRank + (salesRankRange * 0.1);
+        
+        new Chart(salesRankCtx, {
+            type: 'line',
+            data: {
+                labels: salesRankTimes,
+                datasets: [{
+                    label: 'Sales Rank',
+                    data: salesRankData,
+                    borderColor: 'rgb(168, 85, 247)',
+                    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                    tension: 0.1,
+                    stepped: 'before',
+                    borderWidth: 2,
+                    fill: true
+                }]
+            },
+            options: {
+                ...commonChartOptions,
+                scales: {
+                    ...commonChartOptions.scales,
+                    y: {
+                        beginAtZero: false,
+                        min: salesRankMin,
+                        max: salesRankMax,
+                        reverse: false,
+                        ticks: {
+                            color: 'rgb(148, 163, 184)',
+                            callback: function(value) {
+                                return '#' + value.toLocaleString();
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    {% endif %}
+    
+    {% if product.rating_history %}
+    // Gráfica de Rating
+    const ratingCtx = document.getElementById('ratingChart');
+    const ratingHistory = {{ rating_history_json|safe }};
+    
+    const ratingData = ratingHistory.values || [];
+    const ratingTimes = ratingHistory.formatted_times || [];
+    
+    new Chart(ratingCtx, {
+        type: 'line',
+        data: {
+            labels: ratingTimes,
+            datasets: [{
+                label: 'Calificación',
+                data: ratingData,
+                borderColor: 'rgb(34, 197, 94)',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                tension: 0.1,
+                stepped: 'before',
+                borderWidth: 2,
+                fill: true
+            }]
+        },
+        options: {
+            ...commonChartOptions,
+            scales: {
+                ...commonChartOptions.scales,
+                y: {
+                    beginAtZero: false,
+                    min: 0,
+                    max: 5,
                     ticks: {
                         color: 'rgb(148, 163, 184)',
-                        maxRotation: 45,
-                        minRotation: 45
+                        stepSize: 0.5,
+                        callback: function(value) {
+                            return value.toFixed(1) + ' ⭐';
+                        }
                     },
                     grid: {
                         color: 'rgba(255, 255, 255, 0.1)'
@@ -259,7 +448,7 @@
             }
         }
     });
+    {% endif %}
 </script>
-{% endif %}
 {% endblock %}
 

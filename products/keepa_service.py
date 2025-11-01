@@ -40,8 +40,8 @@ class KeepaService:
                 logger.error(f"ASIN inválido: {asin} (debe tener 10 caracteres)")
                 return None
             
-            # Realizar la consulta
-            products = self.api.query(asin)
+            # Realizar la consulta con historial completo y stats
+            products = self.api.query(asin, history=True, stats=90, rating=True)
             
             if not products:
                 logger.warning(f"No se encontró el producto con ASIN: {asin}")
@@ -87,21 +87,66 @@ class KeepaService:
             Dict con los datos parseados
         """
         try:
-            # Extraer rating (Keepa lo devuelve multiplicado por 10)
-            raw_rating = raw_data.get('csv', [None] * 16)[16] if raw_data.get('csv') and len(raw_data.get('csv', [])) > 16 else raw_data.get('rating')
+            # Extraer stats si están disponibles
+            stats = raw_data.get('stats', {})
+            
+            # Extraer rating y review count desde stats (más confiable)
             rating_value = None
-            if raw_rating is not None and raw_rating > 0:
-                rating_value = round(raw_rating / 10.0, 2)  # Convertir de escala Keepa (0-50) a escala normal (0-5)
+            review_count_value = None
+            sales_rank_value = None
             
-            # Extraer review count
-            review_count_value = raw_data.get('csv', [None] * 17)[17] if raw_data.get('csv') and len(raw_data.get('csv', [])) > 17 else raw_data.get('reviewCount')
-            if review_count_value is not None and review_count_value < 0:
-                review_count_value = None  # -1 significa sin datos en Keepa
+            # Primero intentar desde stats
+            if stats:
+                # Rating actual (avg está en escala 0-50, dividir entre 10)
+                current_rating = stats.get('current', {})
+                if current_rating and len(current_rating) > 16:
+                    avg_rating = current_rating[16]  # Índice 16 es RATING
+                    if avg_rating is not None and avg_rating > 0:
+                        rating_value = round(avg_rating / 10.0, 1)
+                
+                # Review count actual
+                if current_rating and len(current_rating) > 17:
+                    review_count = current_rating[17]  # Índice 17 es COUNT_REVIEWS
+                    if review_count is not None and review_count >= 0:
+                        review_count_value = int(review_count)
+                
+                # Sales Rank actual
+                if current_rating and len(current_rating) > 3:
+                    sales_rank = current_rating[3]  # Índice 3 es SALES
+                    if sales_rank is not None and sales_rank > 0:
+                        sales_rank_value = int(sales_rank)
             
-            # Extraer sales rank actual
-            sales_rank_value = raw_data.get('csv', [None] * 3)[3] if raw_data.get('csv') and len(raw_data.get('csv', [])) > 3 else raw_data.get('salesRank')
-            if sales_rank_value is not None and sales_rank_value < 0:
-                sales_rank_value = None  # -1 significa sin datos en Keepa
+            # Si no hay stats, intentar desde csv
+            if not rating_value or not review_count_value or not sales_rank_value:
+                csv_data = raw_data.get('csv', [])
+                
+                # Extraer rating del csv (índice 16)
+                if not rating_value and csv_data and len(csv_data) > 16 and csv_data[16]:
+                    rating_array = csv_data[16]
+                    if isinstance(rating_array, list) and len(rating_array) >= 2:
+                        # El último valor está en la última posición (índice impar)
+                        last_rating = rating_array[-1] if len(rating_array) % 2 == 0 else rating_array[-2]
+                        if last_rating is not None and last_rating > 0:
+                            rating_value = round(last_rating / 10.0, 1)
+                
+                # Extraer review count del csv (índice 17)
+                if not review_count_value and csv_data and len(csv_data) > 17 and csv_data[17]:
+                    review_array = csv_data[17]
+                    if isinstance(review_array, list) and len(review_array) >= 2:
+                        last_review_count = review_array[-1] if len(review_array) % 2 == 0 else review_array[-2]
+                        if last_review_count is not None and last_review_count >= 0:
+                            review_count_value = int(last_review_count)
+                
+                # Extraer sales rank del csv (índice 3)
+                if not sales_rank_value and csv_data and len(csv_data) > 3 and csv_data[3]:
+                    sales_array = csv_data[3]
+                    if isinstance(sales_array, list) and len(sales_array) >= 2:
+                        last_sales_rank = sales_array[-1] if len(sales_array) % 2 == 0 else sales_array[-2]
+                        if last_sales_rank is not None and last_sales_rank > 0:
+                            sales_rank_value = int(last_sales_rank)
+            
+            # Extraer nombres de categorías
+            category_names = self._extract_category_names(raw_data)
             
             # Extraer datos básicos
             parsed_data = {
@@ -115,7 +160,7 @@ class KeepaService:
                 'color': raw_data.get('color', ''),
                 'binding': raw_data.get('binding', ''),
                 'availability_amazon': raw_data.get('availabilityAmazon', 0),
-                'categories': raw_data.get('categories', []),
+                'categories': category_names,
                 'category_tree': raw_data.get('categoryTree', []),
             }
             
@@ -249,6 +294,40 @@ class KeepaService:
         except (ValueError, TypeError):
             return None
 
+    def _extract_category_names(self, raw_data: Dict[str, Any]) -> List[str]:
+        """
+        Extrae nombres de categorías de los datos de Keepa
+        
+        Args:
+            raw_data: Datos raw de Keepa
+            
+        Returns:
+            Lista de nombres de categorías
+        """
+        category_names = []
+        
+        # Intentar extraer desde categoryTree (tiene nombres y IDs)
+        category_tree = raw_data.get('categoryTree', [])
+        if category_tree and isinstance(category_tree, list):
+            for category in category_tree:
+                if isinstance(category, dict):
+                    # Extraer nombre de la categoría
+                    name = category.get('name', '')
+                    if name and name not in category_names:
+                        category_names.append(name)
+        
+        # Si no hay categoryTree, intentar desde el campo categories
+        # pero este suele contener solo IDs
+        if not category_names:
+            categories = raw_data.get('categories', [])
+            if categories and isinstance(categories, list):
+                # Si son números (IDs), no los mostramos, solo si son strings (nombres)
+                for cat in categories:
+                    if isinstance(cat, str) and not cat.isdigit():
+                        category_names.append(cat)
+        
+        return category_names
+    
     def _extract_image_url(self, raw_data: Dict[str, Any]) -> Optional[str]:
         """
         Extrae la URL de imagen del producto de los datos de Keepa

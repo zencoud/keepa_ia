@@ -279,6 +279,47 @@ Para cambiar los colores del sistema:
    python manage.py runserver
    ```
 
+## 🔨 Comandos de Management
+
+### Fetch de Productos (Testing)
+
+Obtiene información de productos desde Keepa API para testing y desarrollo:
+
+```bash
+# Consultar un solo producto
+python manage.py fetch_product B07X6C9RMF
+
+# Consultar múltiples productos
+python manage.py fetch_product B07X6C9RMF B0DJZ8SH7H
+
+# Consultar con un usuario específico
+python manage.py fetch_product B07X6C9RMF --username admin
+
+# Forzar actualización de producto existente
+python manage.py fetch_product B07X6C9RMF --force
+```
+
+**ASINs de Prueba Válidos:**
+- `B07X6C9RMF` - Blink Mini Security Camera
+- `B0DJZ8SH7H` - Gawfolk Gaming Monitor
+
+Ver documentación completa en `docs/FETCH_PRODUCT_COMMAND.md`
+
+### Verificar Alertas de Precio
+
+Verifica alertas de precio configuradas por los usuarios:
+
+```bash
+# Verificar todas las alertas
+python manage.py check_price_alerts
+
+# Verificar solo alertas de alta frecuencia (4x/día)
+python manage.py check_price_alerts --frequency 4
+
+# Modo de prueba (dry-run)
+python manage.py check_price_alerts --dry-run
+```
+
 ## 📁 Estructura del Proyecto
 
 ```
