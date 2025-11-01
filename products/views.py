@@ -544,15 +544,17 @@ def generate_ai_summary_view(request, asin):
             ai_summary = openai_service.generate_price_summary(product_data)
             
             if ai_summary:
-                # Guardar resumen en la base de datos
+                # Guardar resumen en la base de datos con timestamp
                 product.ai_summary = ai_summary
+                product.ai_summary_generated_at = timezone.now()
                 product.save()
                 
                 logger.info(f"Resumen de IA generado exitosamente para {asin}")
                 
                 return JsonResponse({
                     'success': True,
-                    'summary': ai_summary
+                    'summary': ai_summary,
+                    'generated_at': product.ai_summary_generated_at.strftime('%d/%m/%Y %H:%M')
                 })
             else:
                 logger.warning(f"No se pudo generar resumen de IA para {asin}")

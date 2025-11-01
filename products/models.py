@@ -112,6 +112,11 @@ class Product(models.Model):
         blank=True,
         help_text="Resumen generado por IA del historial de precios"
     )
+    ai_summary_generated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha y hora cuando se generó el resumen de IA"
+    )
     last_updated = models.DateTimeField(
         auto_now=True,
         help_text="Última vez que se actualizó la información"

@@ -144,12 +144,26 @@
             </div>
             
             {% if product.ai_summary %}
-            <!-- Summary Text with Typing Effect -->
+            <!-- Summary Text (mostrado instantáneamente, sin typing en recarga) -->
             <div class="bg-white/5 rounded-[40px] p-6 border border-white/10" id="summary-content">
-                <div id="ai-summary-text" class="text-white text-lg leading-relaxed" data-text="{{ product.ai_summary|escapejs }}">
-                    <!-- Text will be typed here by JavaScript -->
+                <div id="ai-summary-text" class="text-white text-lg leading-relaxed">
+                    {{ product.ai_summary }}
                 </div>
-                <div id="typing-cursor" class="inline-block w-0.5 h-6 bg-purple-400 animate-pulse ml-1"></div>
+            </div>
+            
+            <!-- Información de generación y botón regenerar -->
+            <div class="flex items-center justify-between mt-4 text-sm">
+                <div class="text-slate-400">
+                    {% if product.ai_summary_generated_at %}
+                    Generado el {{ product.ai_summary_generated_at|date:"d/m/Y H:i" }}
+                    {% endif %}
+                </div>
+                <button id="regenerate-ai-summary-btn" class="btn-secondary text-sm px-4 py-2 inline-flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Regenerar Análisis
+                </button>
             </div>
             {% else %}
             <!-- Generate Button -->
@@ -295,85 +309,118 @@
         setTimeout(typeNextCharacter, 300);
     }
     
-    // Efecto de typing para el resumen de IA (si ya existe)
-    document.addEventListener('DOMContentLoaded', function() {
-        const summaryElement = document.getElementById('ai-summary-text');
+    // Función para generar/regenerar resumen
+    function generateSummary(button, isRegenerate = false) {
+        // Obtener el ASIN del producto
+        const asin = '{{ product.asin }}';
+        const summaryContent = document.getElementById('summary-content');
+        const container = document.getElementById('ai-summary-container');
         
-        if (summaryElement && summaryElement.dataset.text) {
-            startTypingEffect(summaryElement.dataset.text, 'ai-summary-text', 'typing-cursor');
-        }
-        
-        // Manejar el botón de generar resumen
-        const generateBtn = document.getElementById('generate-ai-summary-btn');
-        if (generateBtn) {
-            generateBtn.addEventListener('click', function() {
-                // Obtener el ASIN del producto
-                const asin = '{{ product.asin }}';
-                const summaryContent = document.getElementById('summary-content');
-                
-                // Deshabilitar el botón y mostrar loading
-                generateBtn.disabled = true;
-                generateBtn.innerHTML = `
+        // Deshabilitar el botón y mostrar loading
+        button.disabled = true;
+        const originalButtonContent = button.innerHTML;
+        button.innerHTML = `
                     <svg class="w-5 h-5 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    Generando análisis con IA...
+            ${isRegenerate ? 'Regenerando' : 'Generando'} análisis con IA...
+        `;
+        
+        // Obtener el CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                          document.cookie.split('; ')
+                            .find(row => row.startsWith('csrftoken='))
+                            ?.split('=')[1];
+        
+        // Hacer la petición AJAX
+        fetch(`/products/generate-ai-summary/${asin}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Crear nuevo contenido con el resumen y botón regenerar
+                const newContent = `
+                    <div class="bg-white/5 rounded-[40px] p-6 border border-white/10" id="summary-content">
+                        <div id="ai-summary-text" class="text-white text-lg leading-relaxed"></div>
+                        <div id="typing-cursor" class="inline-block w-0.5 h-6 bg-purple-400 animate-pulse ml-1"></div>
+                    </div>
+                    <div class="flex items-center justify-between mt-4 text-sm">
+                        <div class="text-slate-400">
+                            Generado el ${data.generated_at}
+                        </div>
+                        <button id="regenerate-ai-summary-btn" class="btn-secondary text-sm px-4 py-2 inline-flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Regenerar Análisis
+                        </button>
+                    </div>
                 `;
                 
-                // Obtener el CSRF token
-                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
-                                  document.cookie.split('; ')
-                                    .find(row => row.startsWith('csrftoken='))
-                                    ?.split('=')[1];
+                // Reemplazar todo el contenido interno del container
+                const badge = container.querySelector('.flex.items-center.gap-2.mb-4');
+                container.innerHTML = '';
+                container.appendChild(badge);
+                container.innerHTML += newContent;
                 
-                // Hacer la petición AJAX
-                fetch(`/products/generate-ai-summary/${asin}/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': csrfToken,
-                        'Content-Type': 'application/json',
-                    },
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Reemplazar el contenido con el resumen
-                        summaryContent.innerHTML = `
-                            <div id="ai-summary-text" class="text-white text-lg leading-relaxed"></div>
-                            <div id="typing-cursor" class="inline-block w-0.5 h-6 bg-purple-400 animate-pulse ml-1"></div>
-                        `;
-                        
-                        // Iniciar el efecto de typing
-                        startTypingEffect(data.summary, 'ai-summary-text', 'typing-cursor');
-                    } else {
-                        // Mostrar error
-                        summaryContent.innerHTML = `
-                            <div class="text-center">
-                                <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <p class="text-red-300 mb-4">${data.error}</p>
-                                <button onclick="location.reload()" class="btn-secondary">
-                                    Intentar de nuevo
-                                </button>
-                            </div>
-                        `;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    summaryContent.innerHTML = `
-                        <div class="text-center">
-                            <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <p class="text-red-300 mb-4">Error al generar el resumen. Por favor, intenta de nuevo.</p>
-                            <button onclick="location.reload()" class="btn-secondary">
-                                Intentar de nuevo
-                            </button>
-                        </div>
-                    `;
+                // Iniciar el efecto de typing
+                startTypingEffect(data.summary, 'ai-summary-text', 'typing-cursor');
+                
+                // Agregar listener al nuevo botón de regenerar
+                document.getElementById('regenerate-ai-summary-btn').addEventListener('click', function() {
+                    generateSummary(this, true);
                 });
+            } else {
+                // Mostrar error
+                summaryContent.innerHTML = `
+                    <div class="text-center">
+                        <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p class="text-red-300 mb-4">${data.error}</p>
+                        <button onclick="location.reload()" class="btn-secondary">
+                            Intentar de nuevo
+                        </button>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            summaryContent.innerHTML = `
+                <div class="text-center">
+                    <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="text-red-300 mb-4">Error al generar el resumen. Por favor, intenta de nuevo.</p>
+                    <button onclick="location.reload()" class="btn-secondary">
+                        Intentar de nuevo
+                    </button>
+                </div>
+            `;
+        });
+    }
+    
+    // Event listeners al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        // Manejar el botón de generar resumen (primera vez)
+        const generateBtn = document.getElementById('generate-ai-summary-btn');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', function() {
+                generateSummary(this, false);
+            });
+        }
+        
+        // Manejar el botón de regenerar resumen (si ya existe)
+        const regenerateBtn = document.getElementById('regenerate-ai-summary-btn');
+        if (regenerateBtn) {
+            regenerateBtn.addEventListener('click', function() {
+                generateSummary(this, true);
             });
         }
     });
