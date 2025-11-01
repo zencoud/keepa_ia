@@ -1,416 +1,239 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crear Alerta de Precio - Keepa IA</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-        }
-        .header {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header h1 {
-            color: #333;
-            margin: 0;
-            font-size: 1.8rem;
-        }
-        .nav-links {
-            display: flex;
-            gap: 1rem;
-        }
-        .nav-links a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
-            transition: background-color 0.3s ease;
-        }
-        .nav-links a:hover {
-            background-color: #f0f0f0;
-        }
-        .main-content {
-            padding: 2rem;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        .alert-form-card {
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            margin-bottom: 2rem;
-        }
-        .product-preview {
-            background: #f8f9fa;
-            padding: 1.5rem;
-            border-radius: 10px;
-            margin-bottom: 2rem;
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-        .product-image {
-            width: 80px;
-            height: 80px;
-            background: #e9ecef;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            flex-shrink: 0;
-        }
-        .product-image img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-        .product-info h3 {
-            margin: 0 0 0.5rem 0;
-            color: #333;
-            font-size: 1.2rem;
-        }
-        .product-info p {
-            margin: 0;
-            color: #666;
-            font-size: 0.9rem;
-        }
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: #333;
-        }
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #e9ecef;
-            border-radius: 5px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-        }
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .price-input-container {
-            position: relative;
-        }
-        .price-input-container::before {
-            content: '$';
-            position: absolute;
-            left: 0.75rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #666;
-            font-weight: 600;
-            z-index: 1;
-        }
-        .price-input-container input {
-            padding-left: 2rem;
-        }
-        .form-help {
-            font-size: 0.85rem;
-            color: #666;
-            margin-top: 0.5rem;
-        }
-        .current-prices {
-            background: #e8f5e8;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
-        }
-        .current-prices h4 {
-            margin: 0 0 0.5rem 0;
-            color: #155724;
-            font-size: 1rem;
-        }
-        .prices-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 1rem;
-        }
-        .price-item {
-            text-align: center;
-            padding: 0.5rem;
-            background: white;
-            border-radius: 5px;
-        }
-        .price-item .label {
-            font-size: 0.8rem;
-            color: #666;
-            margin-bottom: 0.25rem;
-        }
-        .price-item .value {
-            font-weight: 600;
-            color: #155724;
-        }
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 5px;
-            text-decoration: none;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-            display: inline-block;
-            text-align: center;
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-        .btn-group {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-        }
-        .messages {
-            margin-bottom: 1rem;
-        }
-        .alert {
-            padding: 0.75rem;
-            border-radius: 5px;
-            margin-bottom: 1rem;
-        }
-        .alert-success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .alert-error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .alert-warning {
-            background-color: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
-        }
-        .alert-info {
-            background-color: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-        .frequency-info {
-            background: #f8f9fa;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-top: 1rem;
-            border-left: 4px solid #667eea;
-        }
-        .frequency-info h4 {
-            margin: 0 0 0.5rem 0;
-            color: #333;
-            font-size: 1rem;
-        }
-        .frequency-info ul {
-            margin: 0;
-            padding-left: 1.5rem;
-        }
-        .frequency-info li {
-            margin-bottom: 0.25rem;
-            color: #666;
-            font-size: 0.9rem;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>Crear Alerta de Precio</h1>
-        <div class="nav-links">
-            <a href="{% url 'products:detail' product.asin %}">← Volver al Producto</a>
-            <a href="{% url 'products:list' %}">Mis Productos</a>
-            <a href="{% url 'dashboard' %}">Dashboard</a>
+{% extends "base.html" %}
+{% load static %}
+{% load messages_tags %}
+
+{% block title %}Crear Alerta de Precio - {{ product.title|truncatechars:30 }} - Keepa IA{% endblock %}
+
+{% block content %}
+<!-- Header -->
+{% component "header" %}{% endcomponent %}
+
+<!-- Main Content -->
+<main class="min-h-screen pb-12">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Breadcrumbs -->
+        {% component "breadcrumbs" items=breadcrumbs %}{% endcomponent %}
+        
+        <!-- Messages -->
+        {% render_flash_messages %}
+        
+        <!-- Page Header -->
+        <div class="mb-8 animate-fade-in">
+            <h1 class="text-4xl font-bold text-white mb-2 flex items-center">
+                <svg class="w-10 h-10 mr-3 text-keepa-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                Crear Alerta de Precio
+            </h1>
+            <p class="text-slate-300 text-lg">Configura una notificación cuando el precio baje</p>
         </div>
-    </div>
 
-    <div class="main-content">
-        {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }}">
-                        {{ message }}
+        <!-- Form Card -->
+        <div class="glass-card p-8 animate-fade-in">
+            <!-- Product Preview -->
+            <div class="bg-white/5 border border-white/20 rounded-[40px] p-6 mb-8">
+                <div class="flex items-center gap-4">
+                    <!-- Product Image -->
+                    <div class="flex-shrink-0 w-20 h-20 bg-white/10 rounded-[20px] border border-white/20 overflow-hidden flex items-center justify-center">
+                        {% if product.image_url %}
+                            <img src="{{ product.image_url }}" alt="{{ product.title }}" class="w-full h-full object-contain p-2">
+                        {% else %}
+                            <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                        {% endif %}
                     </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-
-        <div class="alert-form-card">
-            <div class="product-preview">
-                <div class="product-image">
-                    {% if product.image_url %}
-                        <img src="{{ product.image_url }}" alt="{{ product.title }}">
-                    {% else %}
-                        <div style="font-size: 2rem; color: #999;">📦</div>
-                    {% endif %}
-                </div>
-                <div class="product-info">
-                    <h3>{{ product.title|truncatechars:60 }}</h3>
-                    <p><strong>ASIN:</strong> {{ product.asin }}</p>
-                    {% if product.brand %}
-                        <p><strong>Marca:</strong> {{ product.brand }}</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <div class="current-prices">
-                <h4>💰 Precios Actuales</h4>
-                <div class="prices-grid">
-                    <div class="price-item">
-                        <div class="label">Nuevo</div>
-                        <div class="value">{{ price_new_display }}</div>
-                    </div>
-                    <div class="price-item">
-                        <div class="label">Amazon</div>
-                        <div class="value">{{ price_amazon_display }}</div>
-                    </div>
-                    <div class="price-item">
-                        <div class="label">Usado</div>
-                        <div class="value">{{ price_used_display }}</div>
+                    
+                    <!-- Product Info -->
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-white font-semibold text-lg mb-1">{{ product.title|truncatechars:60 }}</h3>
+                        <div class="flex flex-wrap gap-3 text-sm">
+                            <span class="text-slate-400">ASIN: <span class="text-white font-mono">{{ product.asin }}</span></span>
+                            {% if product.brand %}
+                                <span class="text-slate-400">Marca: <span class="text-white">{{ product.brand }}</span></span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <form method="post">
+            <!-- Current Prices -->
+            <div class="bg-keepa-green-500/10 border border-keepa-green-500/30 rounded-[40px] p-6 mb-8">
+                <h4 class="text-keepa-green-300 font-semibold text-lg mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Precios Actuales
+                </h4>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-white/5 border border-white/10 rounded-[20px] p-4 text-center">
+                        <div class="text-slate-400 text-sm mb-1">Nuevo</div>
+                        <div class="text-white font-bold text-lg">{{ price_new_display }}</div>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-[20px] p-4 text-center">
+                        <div class="text-slate-400 text-sm mb-1">Amazon</div>
+                        <div class="text-white font-bold text-lg">{{ price_amazon_display }}</div>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-[20px] p-4 text-center">
+                        <div class="text-slate-400 text-sm mb-1">Usado</div>
+                        <div class="text-white font-bold text-lg">{{ price_used_display }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <form method="post" class="space-y-6">
                 {% csrf_token %}
                 
-                <div class="form-group">
-                    <label for="price_type">Tipo de Precio a Monitorear</label>
-                    <select name="price_type" id="price_type" required>
+                <!-- Price Type -->
+                <div>
+                    <label for="price_type" class="block text-white font-semibold mb-2">
+                        Tipo de Precio a Monitorear
+                    </label>
+                    <select name="price_type" id="price_type" required
+                            class="w-full bg-white/10 border border-white/20 rounded-[20px] px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-keepa-blue-500 focus:border-transparent transition-all">
                         {% for value, label in price_types %}
                             <option value="{{ value }}" {% if value == 'new' %}selected{% endif %}>
                                 {{ label }}
                             </option>
                         {% endfor %}
                     </select>
-                    <div class="form-help">
+                    <p class="text-slate-400 text-sm mt-2">
                         Selecciona qué tipo de precio quieres monitorear para este producto.
-                    </div>
+                    </p>
                 </div>
 
-                <div class="form-group">
-                    <label for="target_price">Precio Objetivo</label>
-                    <div class="price-input-container">
+                <!-- Target Price -->
+                <div>
+                    <label for="target_price" class="block text-white font-semibold mb-2">
+                        Precio Objetivo
+                    </label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 font-semibold">$</span>
                         <input type="number" 
                                name="target_price" 
                                id="target_price" 
                                step="0.01" 
                                min="0.01" 
                                required
-                               placeholder="0.00">
+                               placeholder="0.00"
+                               class="w-full bg-white/10 border border-white/20 rounded-[20px] pl-8 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-keepa-blue-500 focus:border-transparent transition-all">
                     </div>
-                    <div class="form-help">
+                    <p class="text-slate-400 text-sm mt-2">
                         Te notificaremos cuando el precio baje a este valor o menos.
-                    </div>
+                    </p>
                 </div>
 
-                <div class="form-group">
-                    <label for="frequency">Frecuencia de Verificación</label>
-                    <select name="frequency" id="frequency" required>
+                <!-- Frequency -->
+                <div>
+                    <label for="frequency" class="block text-white font-semibold mb-2">
+                        Frecuencia de Verificación
+                    </label>
+                    <select name="frequency" id="frequency" required
+                            class="w-full bg-white/10 border border-white/20 rounded-[20px] px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-keepa-blue-500 focus:border-transparent transition-all">
                         {% for value, label in frequencies %}
                             <option value="{{ value }}" {% if value == 2 %}selected{% endif %}>
                                 {{ label }}
                             </option>
                         {% endfor %}
                     </select>
-                    <div class="form-help">
+                    <p class="text-slate-400 text-sm mt-2">
                         Con qué frecuencia queremos verificar el precio de este producto.
-                    </div>
+                    </p>
                 </div>
 
-                <div class="frequency-info">
-                    <h4>ℹ️ Información sobre las Frecuencias</h4>
-                    <ul>
-                        <li><strong>4 veces al día:</strong> Verificación cada 6 horas - Ideal para productos con precios muy volátiles</li>
-                        <li><strong>2 veces al día:</strong> Verificación cada 12 horas - Recomendado para la mayoría de productos</li>
-                        <li><strong>1 vez al día:</strong> Verificación cada 24 horas - Para productos con precios estables</li>
+                <!-- Frequency Info -->
+                <div class="bg-white/5 border border-white/10 rounded-[40px] p-6">
+                    <h4 class="text-white font-semibold mb-3 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-keepa-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Información sobre las Frecuencias
+                    </h4>
+                    <ul class="space-y-2 text-slate-300 text-sm">
+                        <li class="flex items-start">
+                            <span class="text-keepa-blue-400 mr-2">•</span>
+                            <span><strong class="text-white">4 veces al día:</strong> Verificación cada 6 horas - Ideal para productos con precios muy volátiles</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-keepa-blue-400 mr-2">•</span>
+                            <span><strong class="text-white">2 veces al día:</strong> Verificación cada 12 horas - Recomendado para la mayoría de productos</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-keepa-blue-400 mr-2">•</span>
+                            <span><strong class="text-white">1 vez al día:</strong> Verificación cada 24 horas - Para productos con precios estables</span>
+                        </li>
                     </ul>
                 </div>
 
-                <div class="btn-group">
-                    <button type="submit" class="btn btn-primary">
-                        🔔 Crear Alerta de Precio
+                <!-- Action Buttons -->
+                <div class="flex gap-4 pt-4">
+                    <button type="submit" class="btn-primary flex-1 flex items-center justify-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                        Crear Alerta de Precio
                     </button>
-                    <a href="{% url 'products:detail' product.asin %}" class="btn btn-secondary">
+                    <a href="{% url 'products:detail' product.asin %}" class="btn-secondary px-8 flex items-center justify-center">
                         Cancelar
                     </a>
                 </div>
             </form>
         </div>
     </div>
+</main>
 
-    <script>
-        // Actualizar precios actuales cuando cambie el tipo de precio
-        document.getElementById('price_type').addEventListener('change', function() {
-            const priceType = this.value;
-            const currentPrices = {
-                'new': '{{ price_new_display }}',
-                'amazon': '{{ price_amazon_display }}',
-                'used': '{{ price_used_display }}'
-            };
-            
-            const targetPriceInput = document.getElementById('target_price');
-            const currentPrice = currentPrices[priceType];
-            
-            if (currentPrice && currentPrice !== 'N/A') {
-                // Extraer el valor numérico del precio actual
-                const numericPrice = parseFloat(currentPrice.replace('$', ''));
-                if (!isNaN(numericPrice)) {
-                    // Sugerir un precio objetivo 10% menor
-                    const suggestedPrice = (numericPrice * 0.9).toFixed(2);
-                    targetPriceInput.placeholder = suggestedPrice;
-                    targetPriceInput.max = numericPrice - 0.01;
-                }
+<!-- Footer -->
+{% component "footer" %}{% endcomponent %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Actualizar precios actuales cuando cambie el tipo de precio
+    document.getElementById('price_type').addEventListener('change', function() {
+        const priceType = this.value;
+        const currentPrices = {
+            'new': '{{ price_new_display }}',
+            'amazon': '{{ price_amazon_display }}',
+            'used': '{{ price_used_display }}'
+        };
+        
+        const targetPriceInput = document.getElementById('target_price');
+        const currentPrice = currentPrices[priceType];
+        
+        if (currentPrice && currentPrice !== 'N/A') {
+            // Extraer el valor numérico del precio actual
+            const numericPrice = parseFloat(currentPrice.replace('$', ''));
+            if (!isNaN(numericPrice)) {
+                // Sugerir un precio objetivo 10% menor
+                const suggestedPrice = (numericPrice * 0.9).toFixed(2);
+                targetPriceInput.placeholder = suggestedPrice;
+                targetPriceInput.max = numericPrice - 0.01;
             }
-        });
+        }
+    });
 
-        // Validación en tiempo real
-        document.getElementById('target_price').addEventListener('input', function() {
-            const priceType = document.getElementById('price_type').value;
-            const targetPrice = parseFloat(this.value);
-            const currentPrices = {
-                'new': {{ product.current_price_new|default:0 }},
-                'amazon': {{ product.current_price_amazon|default:0 }},
-                'used': {{ product.current_price_used|default:0 }}
-            };
-            
-            const currentPrice = currentPrices[priceType] / 100; // Convertir de centavos a dólares
-            
-            if (currentPrice > 0 && targetPrice >= currentPrice) {
-                this.setCustomValidity('El precio objetivo debe ser menor al precio actual para que la alerta sea útil.');
-            } else {
-                this.setCustomValidity('');
-            }
-        });
+    // Validación en tiempo real
+    document.getElementById('target_price').addEventListener('input', function() {
+        const priceType = document.getElementById('price_type').value;
+        const targetPrice = parseFloat(this.value);
+        const currentPrices = {
+            'new': {{ product.current_price_new|default:0 }},
+            'amazon': {{ product.current_price_amazon|default:0 }},
+            'used': {{ product.current_price_used|default:0 }}
+        };
+        
+        const currentPrice = currentPrices[priceType] / 100; // Convertir de centavos a dólares
+        
+        if (currentPrice > 0 && targetPrice >= currentPrice) {
+            this.setCustomValidity('El precio objetivo debe ser menor al precio actual para que la alerta sea útil.');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
 
-        // Inicializar con el precio actual seleccionado
-        document.getElementById('price_type').dispatchEvent(new Event('change'));
-    </script>
-</body>
-</html>
+    // Inicializar con el precio actual seleccionado
+    document.getElementById('price_type').dispatchEvent(new Event('change'));
+</script>
+{% endblock %}

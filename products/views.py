@@ -368,10 +368,21 @@ def create_alert_view(request, asin):
             return render(request, 'products/create_alert.html', {'product': product})
     
     # GET: Mostrar formulario
+    breadcrumbs = [
+        {'text': 'Inicio', 'url': '/dashboard/'},
+        {'text': 'Productos', 'url': '/products/list/'},
+        {'text': product.title[:30] + '...' if len(product.title) > 30 else product.title, 'url': f'/products/detail/{product.asin}/'},
+        {'text': 'Crear Alerta'},
+    ]
+    
     context = {
         'product': product,
         'price_types': PriceAlert.PRICE_TYPE_CHOICES,
         'frequencies': PriceAlert.FREQUENCY_CHOICES,
+        'price_new_display': product.get_price_display('new'),
+        'price_amazon_display': product.get_price_display('amazon'),
+        'price_used_display': product.get_price_display('used'),
+        'breadcrumbs': breadcrumbs,
     }
     return render(request, 'products/create_alert.html', context)
 
@@ -416,7 +427,16 @@ def delete_alert_view(request, alert_id):
         messages.success(request, f'Alerta para {alert.product.title[:50]}... desactivada exitosamente.')
         return redirect('products:alerts_list')
     
-    context = {'alert': alert}
+    breadcrumbs = [
+        {'text': 'Inicio', 'url': '/dashboard/'},
+        {'text': 'Alertas', 'url': '/products/alerts/'},
+        {'text': 'Eliminar Alerta'},
+    ]
+    
+    context = {
+        'alert': alert,
+        'breadcrumbs': breadcrumbs,
+    }
     return render(request, 'products/delete_alert_confirm.html', context)
 
 
