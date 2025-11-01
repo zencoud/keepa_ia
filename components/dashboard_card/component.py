@@ -20,7 +20,8 @@ class DashboardCard(component.Component):
     template_name = "dashboard_card/dashboard_card.html"
     
     def get_context_data(self, title=None, icon_svg=None, badge=None, 
-                         action_url=None, action_text=None, action_class=None):
+                         action_url=None, action_text=None, action_class=None,
+                         animation=None):
         return {
             'title': title,
             'icon_svg': icon_svg,
@@ -28,5 +29,6 @@ class DashboardCard(component.Component):
             'action_url': action_url,
             'action_text': action_text,
             'action_class': action_class,
+            'animation': animation or 'animate-slide-up',
         }
 

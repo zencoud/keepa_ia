@@ -18,7 +18,7 @@
         {% render_flash_messages %}
 
         <!-- Welcome Header -->
-        <div class="glass-card glass-card-hover mb-8 p-8 animate-fade-in">
+        <div class="glass-card glass-card-hover mb-8 p-8 animate-slide-up">
             <div class="flex items-center justify-between flex-wrap gap-4">
                 <div>
                     <h1 class="text-4xl font-bold text-gradient mb-2">¡Bienvenido, {{ user.username }}!</h1>
@@ -38,7 +38,7 @@
         <!-- Main Statistics Grid -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <!-- Productos Card -->
-            {% component "dashboard_card" title="Productos" icon_svg='<svg class="w-6 h-6 text-keepa-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>' action_url="{% url 'products:list' %}" action_text="Ver Todos los Productos" %}
+            {% component "dashboard_card" title="Productos" animation="animate-slide-up-delay-100" icon_svg='<svg class="w-6 h-6 text-keepa-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>' action_url="{% url 'products:list' %}" action_text="Ver Todos los Productos" %}
                 {% fill "default" %}
                     <div class="flex items-center justify-between">
                         <span class="text-slate-300">Total consultados</span>
@@ -56,7 +56,7 @@
             {% endcomponent %}
 
             <!-- Alertas Card -->
-            {% component "dashboard_card" title="Alertas" icon_svg='<svg class="w-6 h-6 text-keepa-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>' action_url="{% url 'products:alerts_list' %}" action_text="Gestionar Alertas" action_class="btn-secondary" %}
+            {% component "dashboard_card" title="Alertas" animation="animate-slide-up-delay-200" icon_svg='<svg class="w-6 h-6 text-keepa-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>' action_url="{% url 'products:alerts_list' %}" action_text="Gestionar Alertas" action_class="btn-secondary" %}
                 {% fill "default" %}
                     <div class="flex items-center justify-between">
                         <span class="text-slate-300">Total configuradas</span>
@@ -74,7 +74,7 @@
             {% endcomponent %}
 
             <!-- Notificaciones Card -->
-            {% component "dashboard_card" title="Notificaciones" icon_svg='<svg class="w-6 h-6 text-keepa-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>' badge='{% if unread_notifications > 0 %}<span class="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-2 text-xs font-bold leading-none text-white bg-gradient-to-r from-red-600 to-red-700 rounded-[40px] shadow-lg">{{ unread_notifications }}</span>{% endif %}' action_url="{% url 'products:notifications' %}" action_text="Ver Notificaciones" action_class="btn-secondary" %}
+            {% component "dashboard_card" title="Notificaciones" animation="animate-slide-up-delay-300" icon_svg='<svg class="w-6 h-6 text-keepa-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>' badge='{% if unread_notifications > 0 %}<span class="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-2 text-xs font-bold leading-none text-white bg-gradient-to-r from-red-600 to-red-700 rounded-[40px] shadow-lg">{{ unread_notifications }}</span>{% endif %}' action_url="{% url 'products:notifications' %}" action_text="Ver Notificaciones" action_class="btn-secondary" %}
                 {% fill "default" %}
                     <div class="flex items-center justify-between">
                         <span class="text-slate-300">Total recibidas</span>
@@ -95,7 +95,7 @@
         <!-- Secondary Statistics and Content -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <!-- Top Rated Products -->
-            <div class="glass-card glass-card-hover p-6">
+            <div class="glass-card glass-card-hover p-6 animate-slide-up-delay-400">
                 <h3 class="text-xl font-bold text-white mb-4 flex items-center">
                     <svg class="w-6 h-6 mr-2 text-keepa-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -130,7 +130,7 @@
             </div>
 
             <!-- Active Alerts -->
-            <div class="glass-card glass-card-hover p-6">
+            <div class="glass-card glass-card-hover p-6 animate-slide-up-delay-500">
                 <h3 class="text-xl font-bold text-white mb-4 flex items-center justify-between">
                     <span class="flex items-center">
                         <svg class="w-6 h-6 mr-2 text-keepa-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -175,7 +175,7 @@
 
         <!-- Recent Notifications -->
         {% if recent_notifications %}
-            <div class="glass-card glass-card-hover p-6">
+            <div class="glass-card glass-card-hover p-6 animate-fade-in-delay-500">
                 <h3 class="text-xl font-bold text-white mb-4 flex items-center justify-between">
                     <span class="flex items-center">
                         <svg class="w-6 h-6 mr-2 text-keepa-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
