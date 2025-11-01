@@ -1,0 +1,9 @@
+<div class="stats-card">
+    {% if icon %}
+        <div class="text-4xl mb-4">{{ icon }}</div>
+    {% endif %}
+    <div class="text-3xl font-bold text-keepa-blue-300 mb-2">{{ value }}</div>
+    <div class="text-slate-300 font-medium">{{ label }}</div>
+    {% slot "default" %}{% endslot %}
+</div>
+

@@ -1,134 +1,92 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión - Keepa IA</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .login-container {
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 400px;
-        }
-        .login-header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        .login-header h1 {
-            color: #333;
-            margin: 0;
-            font-size: 2rem;
-        }
-        .login-header p {
-            color: #666;
-            margin: 0.5rem 0 0 0;
-        }
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #333;
-            font-weight: 500;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #e1e5e9;
-            border-radius: 5px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-            box-sizing: border-box;
-        }
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .btn-login {
-            width: 100%;
-            padding: 0.75rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-        }
-        .btn-login:hover {
-            transform: translateY(-2px);
-        }
-        .messages {
-            margin-bottom: 1rem;
-        }
-        .alert {
-            padding: 0.75rem;
-            border-radius: 5px;
-            margin-bottom: 1rem;
-        }
-        .alert-success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .alert-error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .alert-info {
-            background-color: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-    </style>
-</head>
-<body>
-    <div class="login-container">
-        <div class="login-header">
-            <h1>Keepa IA</h1>
-            <p>Inicia sesión en tu cuenta</p>
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Iniciar Sesión - Keepa IA{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 py-12">
+    <div class="glass-card glass-card-hover max-w-md w-full p-8 animate-slide-up">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-keepa-blue-600 to-keepa-blue-800 rounded-2xl mb-4 shadow-xl">
+                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+            </div>
+            <h1 class="text-3xl font-bold text-gradient mb-2">Keepa IA</h1>
+            <p class="text-slate-300">Inicia sesión en tu cuenta</p>
         </div>
 
+        <!-- Messages -->
         {% if messages %}
-            <div class="messages">
+            <div class="mb-6 space-y-2">
                 {% for message in messages %}
                     <div class="alert alert-{{ message.tags }}">
-                        {{ message }}
+                        <div class="flex items-center">
+                            {% if message.tags == 'error' %}
+                                <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                </svg>
+                            {% elif message.tags == 'success' %}
+                                <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                            {% elif message.tags == 'info' %}
+                                <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                </svg>
+                            {% endif %}
+                            <span>{{ message }}</span>
+                        </div>
                     </div>
                 {% endfor %}
             </div>
         {% endif %}
 
-        <form method="post">
+        <!-- Form -->
+        <form method="post" class="space-y-6">
             {% csrf_token %}
-            <div class="form-group">
-                <label for="username">Usuario:</label>
-                <input type="text" id="username" name="username" required>
+            
+            <div>
+                <label for="username" class="block text-sm font-semibold text-white mb-2">
+                    Usuario
+                </label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    required
+                    class="form-input"
+                    placeholder="Ingresa tu usuario"
+                    autocomplete="username"
+                >
             </div>
             
-            <div class="form-group">
-                <label for="password">Contraseña:</label>
-                <input type="password" id="password" name="password" required>
+            <div>
+                <label for="password" class="block text-sm font-semibold text-white mb-2">
+                    Contraseña
+                </label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    required
+                    class="form-input"
+                    placeholder="Ingresa tu contraseña"
+                    autocomplete="current-password"
+                >
             </div>
             
-            <button type="submit" class="btn-login">Iniciar Sesión</button>
+            <button type="submit" class="btn-primary w-full py-3 text-base">
+                <span class="inline-block mr-2">🔐</span>
+                Iniciar Sesión
+            </button>
         </form>
+
+        <!-- Footer -->
+        <p class="text-center text-sm text-slate-400 mt-6">
+            &copy; 2025 Keepa IA - Sistema de Análisis de Precios
+        </p>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

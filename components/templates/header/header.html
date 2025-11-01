@@ -1,0 +1,70 @@
+{% load static %}
+<header class="navbar sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+            <!-- Logo and Brand -->
+            <div class="flex items-center space-x-3">
+                <a href="{% url 'dashboard' %}" class="flex items-center space-x-3 group">
+                    <div class="w-10 h-10 bg-gradient-to-br from-keepa-blue-600 to-keepa-blue-800 rounded-[40px] flex items-center justify-center shadow-lg shadow-keepa-blue-500/50 group-hover:shadow-xl group-hover:shadow-keepa-blue-500/60 transition-all duration-300 group-hover:scale-110 backdrop-blur-sm">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gradient hidden sm:block">Keepa IA</h1>
+                </a>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="hidden md:flex items-center space-x-2">
+                <a href="{% url 'products:search' %}" class="flex items-center space-x-2 px-4 py-2 text-white hover:text-keepa-blue-300 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-[40px] transition-all duration-200 font-medium border border-white/20 hover:border-white/40 hover:shadow-md">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <span>Buscar</span>
+                </a>
+                <a href="{% url 'products:list' %}" class="flex items-center space-x-2 px-4 py-2 text-white hover:text-keepa-blue-300 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-[40px] transition-all duration-200 font-medium border border-white/20 hover:border-white/40 hover:shadow-md">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                    <span>Productos</span>
+                </a>
+                <a href="{% url 'products:alerts_list' %}" class="flex items-center space-x-2 px-4 py-2 text-white hover:text-keepa-blue-300 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-[40px] transition-all duration-200 font-medium border border-white/20 hover:border-white/40 hover:shadow-md">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span>Alertas</span>
+                </a>
+                <div class="relative ml-1">
+                    <a href="{% url 'products:notifications' %}" class="flex items-center space-x-2 px-4 py-2 text-white hover:text-keepa-blue-300 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-[40px] transition-all duration-200 font-medium border border-white/20 hover:border-white/40 hover:shadow-md relative">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                        <span>Notificaciones</span>
+                        {% if unread_notifications_count > 0 %}
+                            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-red-600 to-red-700 rounded-[40px] shadow-lg ring-2 ring-white">
+                                {{ unread_notifications_count }}
+                            </span>
+                        {% endif %}
+                    </a>
+                </div>
+            </nav>
+
+            <!-- User Info and Actions -->
+            <div class="flex items-center space-x-4">
+                <div class="hidden lg:flex items-center space-x-2 px-3 py-2 bg-white/10 backdrop-blur-sm rounded-[40px] border border-white/20 text-sm">
+                    <svg class="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span class="font-medium text-white">{{ user.username }}</span>
+                </div>
+                <a href="{% url 'accounts:logout' %}" class="flex items-center space-x-2 btn-danger text-sm px-4 py-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span>Cerrar Sesión</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</header>
+

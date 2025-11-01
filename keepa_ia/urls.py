@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.http import HttpResponseRedirect
+from accounts import views as accounts_views
 
 def redirect_to_login(request):
     return HttpResponseRedirect('/accounts/login/')
@@ -25,5 +26,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
     path('products/', include('products.urls')),
+    path('dashboard/', accounts_views.dashboard_view, name='dashboard'),
     path('', redirect_to_login),  # Redirigir la raíz a login
 ]

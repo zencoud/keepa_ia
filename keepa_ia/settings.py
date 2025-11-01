@@ -38,6 +38,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'tailwind',
+    'django_components',
+    'theme',
+    'components',
     'accounts',
     'products',
 ]
@@ -65,6 +69,9 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'products.context_processors.notifications_context',
+            ],
+            'builtins': [
+                'django_components.templatetags.component_tags',
             ],
         },
     },
@@ -136,7 +143,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Authentication settings
 LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/accounts/home/'
+LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 # Keepa API settings
@@ -156,3 +163,16 @@ SERVER_EMAIL = config('SERVER_EMAIL', default='admin@keepa-ia.local')
 # Site settings
 SITE_NAME = config('SITE_NAME', default='Keepa IA')
 SITE_URL = config('SITE_URL', default='http://localhost:8000')
+
+# Django Tailwind settings
+TAILWIND_APP_NAME = 'theme'
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
+
+# Django Components settings
+COMPONENTS = {
+    "libraries": [
+        "components.tags",
+    ],
+}

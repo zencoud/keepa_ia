@@ -1,0 +1,40 @@
+<div class="product-card">
+    <div class="w-full h-48 bg-slate-100 flex items-center justify-center overflow-hidden">
+        {% if image_url %}
+            <img src="{{ image_url }}" alt="{{ title }}" class="max-w-full max-h-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="hidden items-center justify-center text-slate-400 w-full h-full">
+                <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+            </div>
+        {% else %}
+            <div class="flex items-center justify-center text-slate-400">
+                <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+            </div>
+        {% endif %}
+    </div>
+    <div class="p-6">
+        <h3 class="text-lg font-bold text-slate-800 mb-2 line-clamp-2 min-h-[3.5rem]">{{ title }}</h3>
+        <p class="text-sm text-slate-500 mb-4 font-mono">ASIN: {{ asin }}</p>
+        
+        <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="bg-keepa-blue-50 rounded-lg p-3 text-center">
+                <div class="text-lg font-bold text-keepa-blue-700">{{ price }}</div>
+                <div class="text-xs text-slate-600">Precio Nuevo</div>
+            </div>
+            <div class="bg-keepa-green-50 rounded-lg p-3 text-center">
+                <div class="text-lg font-bold text-keepa-green-700">{{ rating }}</div>
+                <div class="text-xs text-slate-600">Calificación</div>
+            </div>
+        </div>
+        
+        <div class="flex gap-2">
+            <a href="{{ detail_url }}" class="btn-primary text-sm flex-1 text-center">Ver Detalle</a>
+            <a href="{{ refresh_url }}" class="btn-secondary text-sm px-4">↻</a>
+            <a href="{{ delete_url }}" class="btn-danger text-sm px-4">×</a>
+        </div>
+    </div>
+</div>
+

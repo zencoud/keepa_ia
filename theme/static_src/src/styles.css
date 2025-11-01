@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  
+  body {
+    @apply bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 min-h-screen text-white;
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  /* Glassmorphism Component - Optimizado para fondo oscuro */
+  /* Border-radius 40px para mejor efecto glassmorphism */
+  .glass-card {
+    @apply bg-white/10 backdrop-blur-xl border border-white/20 ring-1 ring-white/10 rounded-[40px] shadow-xl shadow-black/20;
+  }
+  
+  .glass-card-hover {
+    @apply transition-all duration-300 hover:scale-[1.02] hover:bg-white/15 hover:shadow-2xl hover:shadow-keepa-blue-500/30 hover:ring-white/20;
+  }
+  
+  /* Button Variants */
+  /* Botones con border-radius 40px para consistencia glassmorphism */
+  .btn-primary {
+    @apply px-6 py-3 bg-gradient-to-r from-keepa-blue-600 to-keepa-blue-700 text-white font-semibold rounded-[40px] shadow-lg shadow-keepa-blue-500/50 hover:from-keepa-blue-700 hover:to-keepa-blue-800 transition-all duration-200 hover:scale-105 active:scale-95;
+  }
+  
+  .btn-secondary {
+    @apply px-6 py-3 bg-gradient-to-r from-slate-600 to-slate-700 text-white font-semibold rounded-[40px] shadow-lg hover:from-slate-700 hover:to-slate-800 transition-all duration-200 hover:scale-105 active:scale-95;
+  }
+  
+  .btn-danger {
+    @apply px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold rounded-[40px] shadow-lg hover:from-red-700 hover:to-red-800 transition-all duration-200 hover:scale-105 active:scale-95;
+  }
+  
+  .btn-success {
+    @apply px-6 py-3 bg-gradient-to-r from-keepa-green-600 to-keepa-green-700 text-white font-semibold rounded-[40px] shadow-lg hover:from-keepa-green-700 hover:to-keepa-green-800 transition-all duration-200 hover:scale-105 active:scale-95;
+  }
+  
+  /* Form Inputs - Optimizado para fondo oscuro con border-radius 40px */
+  .form-input {
+    @apply w-full px-4 py-3 border-2 border-white/20 rounded-[40px] focus:outline-none focus:ring-2 focus:ring-keepa-blue-500 focus:border-transparent transition-all duration-200 bg-white/10 backdrop-blur-sm text-white placeholder:text-slate-400;
+  }
+  
+  .form-input:focus {
+    @apply shadow-lg shadow-keepa-blue-500/30 bg-white/15;
+  }
+  
+  /* Alert Variants con border-radius 40px */
+  .alert {
+    @apply px-4 py-3 rounded-[40px] border-2 backdrop-blur-sm;
+  }
+  
+  .alert-success {
+    @apply bg-green-50/90 border-green-300 text-green-800;
+  }
+  
+  .alert-error {
+    @apply bg-red-50/90 border-red-300 text-red-800;
+  }
+  
+  .alert-warning {
+    @apply bg-yellow-50/90 border-yellow-300 text-yellow-800;
+  }
+  
+  .alert-info {
+    @apply bg-blue-50/90 border-blue-300 text-blue-800;
+  }
+  
+  /* Badge Variants */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-[40px] text-sm font-medium;
+  }
+  
+  .badge-primary {
+    @apply bg-keepa-blue-100 text-keepa-blue-800;
+  }
+  
+  .badge-success {
+    @apply bg-keepa-green-100 text-keepa-green-800;
+  }
+  
+  .badge-danger {
+    @apply bg-red-100 text-red-800;
+  }
+  
+  .badge-warning {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+  
+  /* Stats Card - Optimizado para fondo oscuro */
+  .stats-card {
+    @apply glass-card glass-card-hover p-6 text-center text-white;
+  }
+  
+  /* Product Card */
+  .product-card {
+    @apply glass-card glass-card-hover overflow-hidden;
+  }
+  
+  /* Navbar - Optimizado para fondo oscuro */
+  .navbar {
+    @apply bg-white/10 backdrop-blur-xl border-b border-white/20 ring-1 ring-white/10 shadow-lg shadow-black/10;
+  }
+  
+  /* Footer */
+  .footer {
+    @apply bg-slate-900/90 backdrop-blur-xl border-t border-white/10 text-slate-300;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-keepa-blue-600 to-keepa-blue-800;
+  }
+  
+  .bg-gradient-glass {
+    @apply bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-xl;
+  }
+}
+

@@ -1,0 +1,28 @@
+<div class="glass-card glass-card-hover p-6">
+    {% if title %}
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-bold text-white flex items-center">
+                {% if icon_svg %}
+                    <span class="mr-2">{{ icon_svg|safe }}</span>
+                {% endif %}
+                {{ title }}
+            </h3>
+            {% if badge %}
+                {{ badge|safe }}
+            {% endif %}
+        </div>
+    {% endif %}
+    
+    <div class="{% if title %}space-y-3{% endif %}">
+        {% slot "default" %}
+            <!-- Contenido del slot -->
+        {% endslot %}
+    </div>
+    
+    {% if action_url and action_text %}
+        <a href="{{ action_url }}" class="{% firstof action_class 'btn-primary' %} text-sm w-full mt-4 text-center inline-block">
+            {{ action_text }}
+        </a>
+    {% endif %}
+</div>
+

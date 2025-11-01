@@ -1,0 +1,21 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{% block title %}Keepa IA{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <link href="{% static 'css/dist/styles.css' %}" rel="stylesheet">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="antialiased bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 min-h-screen text-white" style="background-attachment: fixed;">
+    {% block content %}{% endblock %}
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+
