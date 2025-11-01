@@ -10,6 +10,9 @@
 <!-- Main Content -->
 <main class="min-h-screen pb-12">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Breadcrumbs -->
+        {% component "breadcrumbs" items=breadcrumbs %}{% endcomponent %}
+        
         <!-- List Header -->
         <div class="glass-card glass-card-hover mb-8 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h2 class="text-3xl font-bold text-gradient">Productos Consultados ({{ page_obj.paginator.count }})</h2>

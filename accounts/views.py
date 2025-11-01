@@ -112,6 +112,11 @@ def dashboard_view(request):
     # Notificaciones recientes
     recent_notifications = user_notifications.order_by('-created_at')[:5]
     
+    # Breadcrumbs
+    breadcrumbs = [
+        {'text': 'Dashboard'},
+    ]
+    
     context = {
         'user': user,
         # Productos
@@ -131,6 +136,8 @@ def dashboard_view(request):
         'recent_notifications_count': recent_notifications_count,
         'notif_by_type': notif_by_type,
         'recent_notifications': recent_notifications,
+        # Breadcrumbs
+        'breadcrumbs': breadcrumbs,
     }
     
     return render(request, 'accounts/home.html', context)

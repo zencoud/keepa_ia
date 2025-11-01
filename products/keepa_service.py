@@ -87,29 +87,37 @@ class KeepaService:
             Dict con los datos parseados
         """
         try:
+            # Extraer rating (Keepa lo devuelve multiplicado por 10)
+            raw_rating = raw_data.get('csv', [None] * 16)[16] if raw_data.get('csv') and len(raw_data.get('csv', [])) > 16 else raw_data.get('rating')
+            rating_value = None
+            if raw_rating is not None and raw_rating > 0:
+                rating_value = round(raw_rating / 10.0, 2)  # Convertir de escala Keepa (0-50) a escala normal (0-5)
+            
+            # Extraer review count
+            review_count_value = raw_data.get('csv', [None] * 17)[17] if raw_data.get('csv') and len(raw_data.get('csv', [])) > 17 else raw_data.get('reviewCount')
+            if review_count_value is not None and review_count_value < 0:
+                review_count_value = None  # -1 significa sin datos en Keepa
+            
+            # Extraer sales rank actual
+            sales_rank_value = raw_data.get('csv', [None] * 3)[3] if raw_data.get('csv') and len(raw_data.get('csv', [])) > 3 else raw_data.get('salesRank')
+            if sales_rank_value is not None and sales_rank_value < 0:
+                sales_rank_value = None  # -1 significa sin datos en Keepa
+            
             # Extraer datos básicos
             parsed_data = {
                 'asin': raw_data.get('asin', ''),
                 'title': raw_data.get('title', ''),
                 'brand': raw_data.get('brand', ''),
                 'image_url': self._extract_image_url(raw_data),
-                'rating': self._safe_float(raw_data.get('rating')),
-                'review_count': self._safe_int(raw_data.get('reviewCount')),
-                'sales_rank_current': self._safe_int(raw_data.get('salesRank')),
+                'rating': rating_value,
+                'review_count': self._safe_int(review_count_value),
+                'sales_rank_current': self._safe_int(sales_rank_value),
                 'color': raw_data.get('color', ''),
                 'binding': raw_data.get('binding', ''),
                 'availability_amazon': raw_data.get('availabilityAmazon', 0),
                 'categories': raw_data.get('categories', []),
                 'category_tree': raw_data.get('categoryTree', []),
             }
-            
-            # Extraer datos adicionales que pueden estar en otros campos
-            if not parsed_data['rating']:
-                parsed_data['rating'] = self._safe_float(raw_data.get('rating'))
-            if not parsed_data['review_count']:
-                parsed_data['review_count'] = self._safe_int(raw_data.get('reviewCount'))
-            if not parsed_data['sales_rank_current']:
-                parsed_data['sales_rank_current'] = self._safe_int(raw_data.get('salesRank'))
             
             # Extraer precios actuales
             data = raw_data.get('data', {})
@@ -119,14 +127,32 @@ class KeepaService:
                 parsed_data['current_price_amazon'] = self._get_latest_price(data.get('AMAZON', []))
                 parsed_data['current_price_used'] = self._get_latest_price(data.get('USED', []))
                 
-                # Extraer sales rank actual si no se encontró antes
+                # Extraer sales rank, rating y review count del historial si no se encontraron antes
                 if not parsed_data['sales_rank_current']:
                     sales_data = data.get('SALES', [])
                     if isinstance(sales_data, (list, tuple)) and len(sales_data) > 0:
-                        # Filtrar valores válidos (mayores a 0)
+                        # Filtrar valores válidos (mayores a 0 y no -1)
                         valid_ranks = [r for r in sales_data if isinstance(r, (int, float)) and r > 0]
                         if valid_ranks:
                             parsed_data['sales_rank_current'] = int(valid_ranks[-1])
+                
+                # Extraer rating del historial si no se encontró antes
+                if not parsed_data['rating']:
+                    rating_data = data.get('RATING', [])
+                    if isinstance(rating_data, (list, tuple)) and len(rating_data) > 0:
+                        # Filtrar valores válidos y tomar el último
+                        valid_ratings = [r for r in rating_data if isinstance(r, (int, float)) and r > 0]
+                        if valid_ratings:
+                            parsed_data['rating'] = round(valid_ratings[-1] / 10.0, 2)
+                
+                # Extraer review count del historial si no se encontró antes
+                if not parsed_data['review_count']:
+                    review_data = data.get('COUNT_REVIEWS', [])
+                    if isinstance(review_data, (list, tuple)) and len(review_data) > 0:
+                        # Filtrar valores válidos y tomar el último
+                        valid_reviews = [r for r in review_data if isinstance(r, (int, float)) and r >= 0]
+                        if valid_reviews:
+                            parsed_data['review_count'] = int(valid_reviews[-1])
                 
                 # Guardar historial completo de precios
                 parsed_data['price_history'] = self.extract_price_history(data)

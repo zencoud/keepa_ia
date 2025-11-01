@@ -6,6 +6,7 @@ from django.db import transaction
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 from django.utils import timezone
+from datetime import timedelta
 import json
 from .models import Product, PriceAlert, Notification
 from .keepa_service import KeepaService
@@ -121,7 +122,18 @@ def search_product_view(request):
             # Patrón POST-REDIRECT-GET: redirigir para que el mensaje se consuma
             return redirect('products:search')
     
-    return render(request, 'products/search.html')
+    # Breadcrumbs
+    breadcrumbs = [
+        {'text': 'Inicio', 'url': '/dashboard/'},
+        {'text': 'Productos', 'url': '/products/list/'},
+        {'text': 'Buscar Producto'},
+    ]
+    
+    context = {
+        'breadcrumbs': breadcrumbs,
+    }
+    
+    return render(request, 'products/search.html', context)
 
 
 @login_required
@@ -130,6 +142,13 @@ def product_detail_view(request, asin):
     Vista para mostrar los detalles de un producto
     """
     product = get_object_or_404(Product, asin=asin)
+    
+    # Breadcrumbs
+    breadcrumbs = [
+        {'text': 'Inicio', 'url': '/dashboard/'},
+        {'text': 'Productos', 'url': '/products/list/'},
+        {'text': product.title[:50] + '...' if len(product.title) > 50 else product.title},
+    ]
     
     # Preparar datos para el template
     context = {
@@ -143,6 +162,7 @@ def product_detail_view(request, asin):
         'rating_history_json': json.dumps(product.rating_history),
         'sales_rank_history_json': json.dumps(product.sales_rank_history),
         'reviews_data_json': json.dumps(product.reviews_data),
+        'breadcrumbs': breadcrumbs,
     }
     
     return render(request, 'products/detail.html', context)
@@ -160,9 +180,16 @@ def product_list_view(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
+    # Breadcrumbs
+    breadcrumbs = [
+        {'text': 'Inicio', 'url': '/dashboard/'},
+        {'text': 'Productos'},
+    ]
+    
     context = {
         'page_obj': page_obj,
         'products': page_obj,
+        'breadcrumbs': breadcrumbs,
     }
     
     return render(request, 'products/list.html', context)
@@ -228,7 +255,17 @@ def delete_product_view(request, asin):
         messages.success(request, f'Producto {asin} eliminado exitosamente.')
         return redirect('products:list')
     
-    context = {'product': product}
+    # Breadcrumbs
+    breadcrumbs = [
+        {'text': 'Inicio', 'url': '/dashboard/'},
+        {'text': 'Productos', 'url': '/products/list/'},
+        {'text': f'Eliminar {product.asin}'},
+    ]
+    
+    context = {
+        'product': product,
+        'breadcrumbs': breadcrumbs,
+    }
     return render(request, 'products/delete_confirm.html', context)
 
 
@@ -344,16 +381,22 @@ def list_alerts_view(request):
     """
     Vista para listar las alertas de precio del usuario
     """
-    alerts = PriceAlert.objects.filter(user=request.user).order_by('-created_at')
+    alerts = PriceAlert.objects.filter(user=request.user).select_related('product').order_by('-created_at')
     
-    # Paginación
-    paginator = Paginator(alerts, 10)  # 10 alertas por página
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    active_alerts_count = alerts.filter(is_active=True).count()
+    total_alerts_count = alerts.count()
+    
+    # Breadcrumbs
+    breadcrumbs = [
+        {'text': 'Inicio', 'url': '/dashboard/'},
+        {'text': 'Alertas de Precio'},
+    ]
     
     context = {
-        'page_obj': page_obj,
-        'alerts': page_obj,
+        'alerts': alerts,
+        'active_alerts_count': active_alerts_count,
+        'total_alerts_count': total_alerts_count,
+        'breadcrumbs': breadcrumbs,
     }
     
     return render(request, 'products/alerts_list.html', context)
@@ -384,16 +427,34 @@ def notifications_view(request):
     """
     Vista para el centro de notificaciones del usuario
     """
-    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+    notifications = Notification.objects.filter(user=request.user).select_related('alert__product').order_by('-created_at')
+    
+    # Estadísticas
+    total_count = notifications.count()
+    unread_count = notifications.filter(is_read=False).count()
+    read_count = notifications.filter(is_read=True).count()
+    one_day_ago = timezone.now() - timedelta(days=1)
+    recent_count = notifications.filter(created_at__gte=one_day_ago).count()
     
     # Paginación
-    paginator = Paginator(notifications, 20)  # 20 notificaciones por página
+    paginator = Paginator(notifications, 15)  # 15 notificaciones por página
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    
+    # Breadcrumbs
+    breadcrumbs = [
+        {'text': 'Inicio', 'url': '/dashboard/'},
+        {'text': 'Notificaciones'},
+    ]
     
     context = {
         'page_obj': page_obj,
         'notifications': page_obj,
+        'total_count': total_count,
+        'unread_count': unread_count,
+        'read_count': read_count,
+        'recent_count': recent_count,
+        'breadcrumbs': breadcrumbs,
     }
     
     return render(request, 'products/notifications_center.html', context)

@@ -19,14 +19,14 @@
         <h3 class="text-lg font-bold text-white mb-2 line-clamp-2 min-h-[3.5rem]">{{ title }}</h3>
         <p class="text-sm text-slate-300 mb-4 font-mono">ASIN: {{ asin }}</p>
         
-        <div class="grid grid-cols-2 gap-3 mb-4">
-            <div class="bg-keepa-blue-500/20 rounded-[40px] p-3 text-center">
-                <div class="text-lg font-bold text-keepa-blue-300">{{ price }}</div>
-                <div class="text-xs text-slate-300">Precio Nuevo</div>
+        <div class="grid grid-cols-2 gap-2 mb-4">
+            <div class="bg-keepa-blue-500/20 rounded-[40px] p-2.5 text-center flex-1 min-w-0">
+                <div class="text-base sm:text-lg font-bold text-keepa-blue-300 truncate">{{ price }}</div>
+                <div class="text-[10px] sm:text-xs text-slate-300">Precio Nuevo</div>
             </div>
-            <div class="bg-keepa-green-500/20 rounded-[40px] p-3 text-center">
-                <div class="text-lg font-bold text-keepa-green-300">{{ rating }}</div>
-                <div class="text-xs text-slate-300">Calificación</div>
+            <div class="bg-keepa-green-500/20 rounded-[40px] p-2.5 text-center flex-1 min-w-0">
+                <div class="text-base sm:text-lg font-bold text-keepa-green-300 truncate">{{ rating }}</div>
+                <div class="text-[10px] sm:text-xs text-slate-300">Calificación</div>
             </div>
         </div>
         

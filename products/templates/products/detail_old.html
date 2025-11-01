@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ product.title|truncatechars:50 }} - Keepa IA</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            color: #333;
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+        .nav-links a:hover {
+            background-color: #f0f0f0;
+        }
+        .main-content {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .product-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .product-header {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        .product-image {
+            flex-shrink: 0;
+            width: 200px;
+            height: 200px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .product-image img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .product-info {
+            flex: 1;
+        }
+        .product-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+            margin: 0 0 1rem 0;
+            line-height: 1.4;
+        }
+        .product-asin {
+            font-size: 1rem;
+            color: #666;
+            margin: 0 0 1rem 0;
+        }
+        .product-brand {
+            font-size: 1.1rem;
+            color: #667eea;
+            font-weight: 500;
+            margin: 0 0 1rem 0;
+        }
+        .product-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin: 0;
+        }
+        .stat-label {
+            color: #666;
+            margin: 0.5rem 0 0 0;
+            font-size: 0.9rem;
+        }
+        .price-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .price-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: border-color 0.3s ease;
+        }
+        .price-card:hover {
+            border-color: #667eea;
+        }
+        .price-type {
+            font-size: 0.9rem;
+            color: #666;
+            margin: 0 0 0.5rem 0;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+        .price-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+            margin: 0;
+        }
+        .price-unavailable {
+            color: #999;
+            font-style: italic;
+        }
+        .messages {
+            margin-bottom: 1rem;
+        }
+        .alert {
+            padding: 0.75rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .last-updated {
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 2rem;
+        }
+        .product-details {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+        .product-details h3 {
+            color: #333;
+            margin: 0 0 1rem 0;
+            font-size: 1.2rem;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        .detail-item {
+            background: white;
+            padding: 1rem;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+        .detail-item strong {
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Detalle del Producto</h1>
+        <div class="nav-links">
+            <a href="{% url 'products:search' %}">Buscar Otro</a>
+            <a href="{% url 'products:list' %}">Mis Productos</a>
+            <a href="{% url 'dashboard' %}">Dashboard</a>
+            <a href="{% url 'accounts:logout' %}">Cerrar Sesión</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="product-card">
+            <div class="product-header">
+                <div class="product-image">
+                    {% if product.image_url %}
+                        <img src="{{ product.image_url }}" 
+                             alt="{{ product.title }}" 
+                             onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    {% endif %}
+                    <div class="no-image-placeholder" style="{% if product.image_url %}display: none;{% else %}display: flex;{% endif %} flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #999; text-align: center; padding: 2rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 10px;">
+                        <div style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.7;">📦</div>
+                        <div style="font-size: 1.1rem; font-weight: 500; margin-bottom: 0.5rem;">Imagen no disponible</div>
+                        <div style="font-size: 0.9rem; opacity: 0.8;">Keepa API no incluye imágenes</div>
+                    </div>
+                </div>
+                <div class="product-info">
+                    <h2 class="product-title">{{ product.title|default:"Producto sin título" }}</h2>
+                    <p class="product-asin">ASIN: {{ product.asin }}</p>
+                    {% if product.brand %}
+                        <p class="product-brand">{{ product.brand }}</p>
+                    {% else %}
+                        <p class="product-brand" style="color: #999; font-style: italic;">Marca no disponible</p>
+                    {% endif %}
+                    <div class="product-actions">
+                        <a href="{% url 'products:create_alert' product.asin %}" class="btn btn-primary">🔔 Crear Alerta de Precio</a>
+                        <a href="{% url 'products:refresh' product.asin %}" class="btn btn-secondary">Actualizar Datos</a>
+                        <a href="{% url 'products:delete' product.asin %}" class="btn btn-danger">Eliminar</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 class="stat-value" id="current-sales-rank">{{ product.sales_rank_display }}</h3>
+                    <p class="stat-label">Sales Rank</p>
+                </div>
+                <div class="stat-card">
+                    <h3 class="stat-value">{% if product.availability_amazon %}✅ Disponible{% else %}❌ No disponible{% endif %}</h3>
+                    <p class="stat-label">Disponibilidad Amazon</p>
+                </div>
+            </div>
+
+            <div class="product-details">
+                <h3>Detalles del Producto</h3>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <strong>Color:</strong> {{ product.color|default:"No especificado" }}
+                    </div>
+                    <div class="detail-item">
+                        <strong>Tipo:</strong> {{ product.binding|default:"No especificado" }}
+                    </div>
+                    <div class="detail-item">
+                        <strong>ASIN:</strong> {{ product.asin }}
+                    </div>
+                    {% if product.category_tree %}
+                    <div class="detail-item">
+                        <strong>Categorías:</strong>
+                        {% for cat in product.category_tree %}
+                            {{ cat.name }}{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="price-grid">
+                <div class="price-card">
+                    <p class="price-type">Nuevo</p>
+                    <p class="price-value {% if not product.current_price_new %}price-unavailable{% endif %}">
+                        {{ price_new_display }}
+                    </p>
+                </div>
+                <div class="price-card">
+                    <p class="price-type">Amazon</p>
+                    <p class="price-value {% if not product.current_price_amazon %}price-unavailable{% endif %}">
+                        {{ price_amazon_display }}
+                    </p>
+                </div>
+                <div class="price-card">
+                    <p class="price-type">Usado</p>
+                    <p class="price-value {% if not product.current_price_used %}price-unavailable{% endif %}">
+                        {{ price_used_display }}
+                    </p>
+                </div>
+            </div>
+
+                    <div class="last-updated">
+                        Última actualización: {{ product.last_updated|date:"d/m/Y H:i" }}
+                    </div>
+                </div>
+
+                <!-- Sección de Historial de Precios -->
+                <div class="price-history-section">
+                    <h3 style="color: #333; margin: 2rem 0 1rem 0; font-size: 1.5rem; text-align: center;">📈 Historial de Precios</h3>
+                    <div class="chart-container">
+                        <canvas id="priceChart" width="400" height="200"></canvas>
+                        <div id="no-data-message" style="display: none; text-align: center; padding: 2rem; color: #666;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                            <div>No hay datos de historial de precios disponibles</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="chart-legend" style="display: none;">
+                        <div class="legend-item">
+                            <span class="legend-color" style="background-color: #667eea;"></span>
+                            <span>Nuevo</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background-color: #764ba2;"></span>
+                            <span>Amazon</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background-color: #f093fb;"></span>
+                            <span>Usado</span>
+                        </div>
+                    </div>
+                </div>
+
+            <!-- Sección de Historial de Sales Rank -->
+                <div class="sales-rank-history-section">
+                    <h3 style="color: #333; margin: 2rem 0 1rem 0; font-size: 1.5rem; text-align: center;">📊 Historial de Sales Rank</h3>
+                    <div class="chart-container">
+                        <canvas id="salesRankChart" width="400" height="200"></canvas>
+                        <div id="no-sales-rank-data-message" style="display: none; text-align: center; padding: 2rem; color: #666;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                            <div>No hay datos de historial de sales rank disponibles</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Chart.js CDN -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        
+        <script>
+            // Datos del historial de precios desde Django
+            const priceHistory = {{ price_history_json|safe }};
+            
+            // Preparar datos para la gráfica
+            const chartData = {
+                labels: [],
+                datasets: []
+            };
+            
+            // Colores para cada tipo de precio
+            const colors = {
+                'NEW': { color: '#667eea', label: 'Nuevo' },
+                'AMAZON': { color: '#764ba2', label: 'Amazon' },
+                'USED': { color: '#f093fb', label: 'Usado' }
+            };
+            
+            // Procesar cada tipo de precio
+            Object.keys(colors).forEach(priceType => {
+                if (priceHistory[priceType] && priceHistory[priceType].formatted_times && priceHistory[priceType].formatted_times.length > 0) {
+                    const prices = priceHistory[priceType].prices || [];
+                    const times = priceHistory[priceType].formatted_times || [];
+                    
+                    // Convertir precios de centavos a dólares
+                    const pricesInDollars = prices.map(price => price ? (price / 100).toFixed(2) : null);
+                    
+                    // Crear dataset para este tipo de precio
+                    const dataset = {
+                        label: colors[priceType].label,
+                        data: pricesInDollars,
+                        borderColor: colors[priceType].color,
+                        backgroundColor: colors[priceType].color + '20',
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 3,
+                        pointHoverRadius: 6
+                    };
+                    
+                    chartData.datasets.push(dataset);
+                    
+                    // Usar las etiquetas de tiempo del primer dataset (todos deberían tener las mismas fechas)
+                    if (chartData.labels.length === 0) {
+                        chartData.labels = times;
+                    }
+                }
+            });
+            
+            // Verificar si hay datos para mostrar
+            if (chartData.datasets.length === 0) {
+                // No hay datos, mostrar mensaje
+                document.getElementById('priceChart').style.display = 'none';
+                document.getElementById('no-data-message').style.display = 'block';
+            } else {
+                // Mostrar leyenda
+                document.getElementById('chart-legend').style.display = 'flex';
+                
+                // Crear la gráfica
+                const ctx = document.getElementById('priceChart').getContext('2d');
+                const priceChart = new Chart(ctx, {
+                    type: 'line',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Evolución de Precios - {{ product.title|truncatechars:50 }}',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                },
+                                color: '#333'
+                            },
+                            legend: {
+                                display: false // Usamos nuestra propia leyenda
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Fecha',
+                                    font: {
+                                        weight: 'bold'
+                                    }
+                                },
+                                ticks: {
+                                    maxTicksLimit: 10,
+                                    callback: function(value, index, values) {
+                                        if (chartData.labels[index]) {
+                                            const date = new Date(chartData.labels[index]);
+                                            return date.toLocaleDateString('es-ES', { 
+                                                month: 'short', 
+                                                day: 'numeric' 
+                                            });
+                                        }
+                                        return '';
+                                    }
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Precio (USD)',
+                                    font: {
+                                        weight: 'bold'
+                                    }
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return '$' + value.toFixed(2);
+                                    }
+                                }
+                            }
+                        },
+                        interaction: {
+                            intersect: false,
+                            mode: 'index'
+                        },
+                        elements: {
+                            point: {
+                                hoverBackgroundColor: '#fff',
+                                hoverBorderWidth: 2
+                            }
+                        }
+                    }
+                });
+            }
+
+
+            // Datos del historial de sales rank desde Django
+            const salesRankHistory = {{ sales_rank_history_json|safe }};
+            
+            // Crear gráfica de sales rank
+            if (salesRankHistory && salesRankHistory.values && salesRankHistory.values.length > 0) {
+                const salesRankCtx = document.getElementById('salesRankChart').getContext('2d');
+                const salesRankChart = new Chart(salesRankCtx, {
+                    type: 'line',
+                    data: {
+                        labels: salesRankHistory.formatted_times || [],
+                        datasets: [{
+                            label: 'Sales Rank',
+                            data: salesRankHistory.values || [],
+                            borderColor: '#28a745',
+                            backgroundColor: '#28a74520',
+                            fill: false,
+                            tension: 0.1,
+                            pointRadius: 3,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Evolución de Sales Rank',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                },
+                                color: '#333'
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Fecha',
+                                    font: {
+                                        weight: 'bold'
+                                    }
+                                },
+                                ticks: {
+                                    maxTicksLimit: 10,
+                                    callback: function(value, index, values) {
+                                        if (salesRankHistory.formatted_times && salesRankHistory.formatted_times[index]) {
+                                            const date = new Date(salesRankHistory.formatted_times[index]);
+                                            return date.toLocaleDateString('es-ES', { 
+                                                month: 'short', 
+                                                day: 'numeric' 
+                                            });
+                                        }
+                                        return '';
+                                    }
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Sales Rank',
+                                    font: {
+                                        weight: 'bold'
+                                    }
+                                },
+                                type: 'logarithmic',
+                                ticks: {
+                                    callback: function(value) {
+                                        return '#' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                document.getElementById('salesRankChart').style.display = 'none';
+                document.getElementById('no-sales-rank-data-message').style.display = 'block';
+            }
+
+            // Actualizar el sales rank en el stats grid con el último valor
+            if (salesRankHistory && salesRankHistory.values && salesRankHistory.values.length > 0) {
+                const lastSalesRank = salesRankHistory.values[salesRankHistory.values.length - 1];
+                const salesRankElement = document.getElementById('current-sales-rank');
+                if (salesRankElement && lastSalesRank > 0) {
+                    salesRankElement.textContent = `#${lastSalesRank.toLocaleString()}`;
+                }
+            }
+
+        </script>
+
+        <style>
+            .price-history-section {
+                background: white;
+                padding: 2rem;
+                border-radius: 10px;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+                margin-top: 2rem;
+            }
+            
+            .chart-container {
+                position: relative;
+                height: 400px;
+                margin: 2rem 0;
+                background: #f8f9fa;
+                border-radius: 10px;
+                padding: 1rem;
+            }
+            
+            .chart-legend {
+                display: flex;
+                justify-content: center;
+                gap: 2rem;
+                margin-top: 1rem;
+                flex-wrap: wrap;
+            }
+            
+            .legend-item {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-weight: 500;
+                color: #333;
+            }
+            
+            .legend-color {
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: inline-block;
+            }
+            
+            .sales-rank-history-section {
+                background: white;
+                padding: 2rem;
+                border-radius: 10px;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+                margin-top: 2rem;
+            }
+            
+            
+            @media (max-width: 768px) {
+                .chart-container {
+                    height: 300px;
+                }
+                
+                .chart-legend {
+                    gap: 1rem;
+                }
+                
+            }
+        </style>
+        </body>
+        </html>
