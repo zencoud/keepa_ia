@@ -129,6 +129,42 @@
             </div>
         </div>
         
+        <!-- AI Summary Section -->
+        <div class="glass-card p-8 mb-8 animate-slide-up-delay-100 relative overflow-hidden" id="ai-summary-container">
+            <!-- AI Badge -->
+            <div class="flex items-center gap-2 mb-4">
+                <div class="flex items-center gap-2 bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 rounded-[40px] px-4 py-2">
+                    <svg class="w-5 h-5 text-purple-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    <span class="text-sm font-semibold text-purple-300">Análisis con IA</span>
+                </div>
+                <div class="flex-1"></div>
+                <div class="text-xs text-slate-400">GPT-4o</div>
+            </div>
+            
+            {% if product.ai_summary %}
+            <!-- Summary Text with Typing Effect -->
+            <div class="bg-white/5 rounded-[40px] p-6 border border-white/10" id="summary-content">
+                <div id="ai-summary-text" class="text-white text-lg leading-relaxed" data-text="{{ product.ai_summary|escapejs }}">
+                    <!-- Text will be typed here by JavaScript -->
+                </div>
+                <div id="typing-cursor" class="inline-block w-0.5 h-6 bg-purple-400 animate-pulse ml-1"></div>
+            </div>
+            {% else %}
+            <!-- Generate Button -->
+            <div class="bg-white/5 rounded-[40px] p-6 border border-white/10 text-center" id="summary-content">
+                <p class="text-slate-300 mb-4">Genera un análisis inteligente del historial de precios con IA</p>
+                <button id="generate-ai-summary-btn" class="btn-primary inline-flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Generar Reporte con IA
+                </button>
+            </div>
+            {% endif %}
+        </div>
+        
         <!-- Charts Grid -->
         <div class="grid gap-8 mb-8">
             <!-- Price History Chart -->
@@ -227,6 +263,121 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Función para el efecto de typing
+    function startTypingEffect(text, elementId, cursorId) {
+        const summaryElement = document.getElementById(elementId);
+        const cursorElement = document.getElementById(cursorId);
+        
+        if (!summaryElement) return;
+        
+        let currentIndex = 0;
+        const typingSpeed = 20; // milliseconds per character
+        
+        // Limpiar el contenido inicial
+        summaryElement.textContent = '';
+        
+        function typeNextCharacter() {
+            if (currentIndex < text.length) {
+                summaryElement.textContent += text[currentIndex];
+                currentIndex++;
+                setTimeout(typeNextCharacter, typingSpeed);
+            } else {
+                // Ocultar el cursor cuando termine de escribir
+                if (cursorElement) {
+                    setTimeout(() => {
+                        cursorElement.style.display = 'none';
+                    }, 500);
+                }
+            }
+        }
+        
+        // Iniciar el efecto de typing después de un pequeño delay
+        setTimeout(typeNextCharacter, 300);
+    }
+    
+    // Efecto de typing para el resumen de IA (si ya existe)
+    document.addEventListener('DOMContentLoaded', function() {
+        const summaryElement = document.getElementById('ai-summary-text');
+        
+        if (summaryElement && summaryElement.dataset.text) {
+            startTypingEffect(summaryElement.dataset.text, 'ai-summary-text', 'typing-cursor');
+        }
+        
+        // Manejar el botón de generar resumen
+        const generateBtn = document.getElementById('generate-ai-summary-btn');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', function() {
+                // Obtener el ASIN del producto
+                const asin = '{{ product.asin }}';
+                const summaryContent = document.getElementById('summary-content');
+                
+                // Deshabilitar el botón y mostrar loading
+                generateBtn.disabled = true;
+                generateBtn.innerHTML = `
+                    <svg class="w-5 h-5 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Generando análisis con IA...
+                `;
+                
+                // Obtener el CSRF token
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                                  document.cookie.split('; ')
+                                    .find(row => row.startsWith('csrftoken='))
+                                    ?.split('=')[1];
+                
+                // Hacer la petición AJAX
+                fetch(`/products/generate-ai-summary/${asin}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Reemplazar el contenido con el resumen
+                        summaryContent.innerHTML = `
+                            <div id="ai-summary-text" class="text-white text-lg leading-relaxed"></div>
+                            <div id="typing-cursor" class="inline-block w-0.5 h-6 bg-purple-400 animate-pulse ml-1"></div>
+                        `;
+                        
+                        // Iniciar el efecto de typing
+                        startTypingEffect(data.summary, 'ai-summary-text', 'typing-cursor');
+                    } else {
+                        // Mostrar error
+                        summaryContent.innerHTML = `
+                            <div class="text-center">
+                                <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <p class="text-red-300 mb-4">${data.error}</p>
+                                <button onclick="location.reload()" class="btn-secondary">
+                                    Intentar de nuevo
+                                </button>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    summaryContent.innerHTML = `
+                        <div class="text-center">
+                            <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p class="text-red-300 mb-4">Error al generar el resumen. Por favor, intenta de nuevo.</p>
+                            <button onclick="location.reload()" class="btn-secondary">
+                                Intentar de nuevo
+                            </button>
+                        </div>
+                    `;
+                });
+            });
+        }
+    });
+    
     // Configuración común para todas las gráficas
     const commonChartOptions = {
         responsive: true,

@@ -164,6 +164,9 @@ MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 # Keepa API settings
 KEEPA_API_KEY = config('KEEPA_API_KEY', default='')
 
+# OpenAI API settings
+OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+
 # Email settings
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = config('EMAIL_HOST', default='localhost')

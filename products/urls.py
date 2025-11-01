@@ -20,4 +20,7 @@ urlpatterns = [
     path('notifications/', views.notifications_view, name='notifications'),
     path('notifications/mark-read/<int:notification_id>/', views.mark_notification_read_view, name='mark_notification_read'),
     path('notifications/mark-all-read/', views.mark_all_notifications_read_view, name='mark_all_notifications_read'),
+    
+    # IA
+    path('generate-ai-summary/<str:asin>/', views.generate_ai_summary_view, name='generate_ai_summary'),
 ]

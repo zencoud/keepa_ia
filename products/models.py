@@ -107,6 +107,11 @@ class Product(models.Model):
         default=dict,
         help_text="Datos de reseñas en formato JSON"
     )
+    ai_summary = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Resumen generado por IA del historial de precios"
+    )
     last_updated = models.DateTimeField(
         auto_now=True,
         help_text="Última vez que se actualizó la información"

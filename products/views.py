@@ -10,6 +10,7 @@ from datetime import timedelta
 import json
 from .models import Product, PriceAlert, Notification
 from .keepa_service import KeepaService
+from .openai_service import OpenAIService
 from .notifications import create_system_notification, get_user_unread_notifications_count
 import logging
 
@@ -233,8 +234,8 @@ def refresh_product_view(request, asin):
             product.save()
         
         messages.success(request, f'Producto {asin} actualizado exitosamente.')
-        # Redirigir a la lista de productos después de actualizar
-        return redirect('products:list')
+        # Redirigir al detalle del producto después de actualizar
+        return redirect('products:detail', asin=asin)
         
     except Exception as e:
         logger.error(f"Error actualizando producto {asin}: {e}")
@@ -514,3 +515,69 @@ def mark_all_notifications_read_view(request):
         return redirect('products:notifications')
     
     return redirect('products:notifications')
+
+
+@login_required
+@require_http_methods(["POST"])
+def generate_ai_summary_view(request, asin):
+    """
+    Vista AJAX para generar resumen de IA bajo demanda
+    """
+    try:
+        product = get_object_or_404(Product, asin=asin)
+        
+        # Preparar datos del producto para OpenAI
+        product_data = {
+            'title': product.title,
+            'price_history': product.price_history,
+            'current_price_new': product.current_price_new,
+            'current_price_amazon': product.current_price_amazon,
+            'current_price_used': product.current_price_used,
+            'rating': product.rating,
+            'review_count': product.review_count,
+            'sales_rank_current': product.sales_rank_current,
+        }
+        
+        # Generar resumen con OpenAI
+        try:
+            openai_service = OpenAIService()
+            ai_summary = openai_service.generate_price_summary(product_data)
+            
+            if ai_summary:
+                # Guardar resumen en la base de datos
+                product.ai_summary = ai_summary
+                product.save()
+                
+                logger.info(f"Resumen de IA generado exitosamente para {asin}")
+                
+                return JsonResponse({
+                    'success': True,
+                    'summary': ai_summary
+                })
+            else:
+                logger.warning(f"No se pudo generar resumen de IA para {asin}")
+                return JsonResponse({
+                    'success': False,
+                    'error': 'No se pudo generar el resumen. Verifica que el producto tenga historial de precios.'
+                }, status=400)
+                
+        except ValueError as e:
+            logger.error(f"OpenAI no configurado: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': 'OpenAI no está configurado. Por favor, contacta al administrador.'
+            }, status=500)
+            
+        except Exception as e:
+            logger.error(f"Error generando resumen de IA para {asin}: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': f'Error al generar el resumen: {str(e)}'
+            }, status=500)
+            
+    except Exception as e:
+        logger.error(f"Error en generate_ai_summary_view para {asin}: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error procesando la solicitud'
+        }, status=500)
