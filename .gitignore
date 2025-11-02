@@ -140,6 +140,8 @@ media/
 # Static files (collected)
 staticfiles/
 static/
+# Exception: track Tailwind compiled CSS
+!theme/static/
 
 # Environment variables
 .env
