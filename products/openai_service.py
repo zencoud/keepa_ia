@@ -659,7 +659,8 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional.
             # Construir prompt flexible basado en la solicitud del usuario
             prompt = self._build_flexible_document_prompt(product_data, user_request)
             
-            logger.info(f"Generando contenido flexible para documento. Solicitud: {user_request}")
+            logger.info(f"[PASO 3] Generando contenido flexible para documento. Solicitud: {user_request}")
+            logger.info(f"[PASO 3] Tamaño del prompt: {len(prompt)} caracteres")
             
             # Llamar a OpenAI con respuesta en Markdown (PASO 3)
             # Detectar si necesita más tokens (historiales completos)
@@ -668,6 +669,7 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional.
             max_tokens = 8000 if asks_for_full_history else 4000
             
             logger.info(f"[PASO 3] Generando contenido Markdown con max_tokens={max_tokens} (historial completo: {asks_for_full_history})")
+            logger.info(f"[PASO 3] Llamando a OpenAI API con modelo gpt-4o...")
             
             response = self.client.chat.completions.create(
                 model="gpt-4o",  # Modelo con mayor capacidad para generar contenido extenso
@@ -700,15 +702,21 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional.
             )
             
             markdown_content = response.choices[0].message.content.strip()
+            logger.info(f"[PASO 3] Respuesta recibida de OpenAI: {len(markdown_content)} caracteres")
             
             # Limpiar bloques de código Markdown que OpenAI a veces agrega
             markdown_content = self._clean_markdown_content(markdown_content)
+            logger.info(f"[PASO 3] Contenido limpiado: {len(markdown_content)} caracteres")
             
-            logger.info("Contenido Markdown generado exitosamente")
+            logger.info("[PASO 3] ✓ Contenido Markdown generado exitosamente")
             return markdown_content
             
         except Exception as e:
-            logger.error(f"Error generando contenido de documento: {e}")
+            logger.error(f"[PASO 3] Error generando contenido de documento: {e}")
+            logger.error(f"[PASO 3] Tipo de error: {type(e).__name__}")
+            logger.error(f"[PASO 3] User request: {user_request}")
+            import traceback
+            logger.error(f"[PASO 3] Traceback completo:\n{traceback.format_exc()}")
             # Retornar contenido básico en Markdown
             return self._get_fallback_markdown(product_data, user_request)
     
@@ -797,9 +805,9 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional.
 - **Disponibilidad en Amazon**: {"✓ Disponible" if availability_amazon == 1 else "✗ No disponible"}
 - **Imagen**: {image_url}
 
-## Categorías
-{f"- Categorías: {', '.join(categories[:5])}" if categories else "- Sin categorías"}
-{f"- Árbol de categorías: {' > '.join(category_tree[:3])}" if category_tree else ""}
+        ## Categorías
+{f"- Categorías: {', '.join(str(c) for c in categories[:5])}" if categories else "- Sin categorías"}
+{f"- Árbol de categorías: {' > '.join(str(c) if isinstance(c, str) else str(c.get('name', c)) if isinstance(c, dict) else str(c) for c in category_tree[:3])}" if category_tree else ""}
 
 ## Precios Actuales
 """
@@ -1145,11 +1153,14 @@ REGLAS CRÍTICAS:
         Returns:
             String con Markdown básico
         """
+        logger.warning(f"[FALLBACK] Generando contenido básico de fallback para request: {user_request}")
+        
         title = product_data.get('title', 'Producto')
         asin = product_data.get('asin', 'N/A')
-        current_price = product_data.get('current_price_new', 0) / 100
-        rating = product_data.get('rating', 0)
-        review_count = product_data.get('review_count', 0)
+        current_price_raw = product_data.get('current_price_new', 0)
+        current_price = (current_price_raw / 100) if current_price_raw else 0.0
+        rating = product_data.get('rating', 0) or 0
+        review_count = product_data.get('review_count', 0) or 0
         
         markdown = f"""# Análisis de Producto - Keepa AI
 
