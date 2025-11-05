@@ -1469,6 +1469,26 @@ def best_sellers_view(request):
         products_data = []
         paginator = None
         page_obj = None
+        results_count = 0
+        
+        # Permitir búsqueda global sin categoría: si hay category_search pero no category_id
+        if category_search and not category_id:
+            try:
+                keepa_service = KeepaService()
+                # Buscar categorías que coincidan con el término de búsqueda
+                categories = keepa_service.search_categories(category_search)
+                
+                if categories and len(categories) > 0:
+                    # Usar la primera categoría encontrada
+                    selected_category = categories[0]
+                    category_id = selected_category.get('id')
+                    category_name = selected_category.get('name') or selected_category.get('contextFreeName', category_search)
+                    logger.info(f"Búsqueda global: usando categoría '{category_name}' (ID: {category_id}) para término '{category_search}'")
+                else:
+                    messages.warning(request, f'No se encontraron categorías que coincidan con "{category_search}". Por favor, selecciona una categoría de la lista.')
+            except Exception as e:
+                logger.error(f"Error en búsqueda global: {e}")
+                messages.error(request, f'Error al buscar categorías: {str(e)[:100]}')
         
         if category_id:
             # Validar que category_id sea numérico
@@ -1617,38 +1637,52 @@ def best_sellers_view(request):
                         except:
                             pass
                         
+                        # Guardar el conteo de resultados
+                        results_count = len(products_data)
+                        
                         # Paginación
                         paginator = Paginator(products_data, 20)  # 20 productos por página
                         try:
+                            page_number = int(page_number)
                             page_obj = paginator.page(page_number)
+                        except (ValueError, TypeError):
+                            page_obj = paginator.page(1)
                         except:
                             page_obj = paginator.page(1)
                         
-                        # Guardar la búsqueda en el historial
+                        # Guardar o actualizar la búsqueda en el historial
                         # Solo guardar si hay resultados o si es una búsqueda válida
                         if category_id and category_search:
                             try:
-                                # Evitar duplicados consecutivos del mismo usuario con la misma categoría
+                                # Buscar si ya existe una búsqueda reciente (últimos 5 minutos) con la misma categoría
                                 last_search = BestSellerSearch.objects.filter(
                                     user=request.user,
                                     category_id=category_id
-                                ).first()
+                                ).order_by('-created_at').first()
                                 
-                                # Solo guardar si no es un duplicado reciente (últimos 5 minutos)
-                                should_save = True
+                                # Si existe una búsqueda reciente (últimos 5 minutos), actualizarla
+                                should_update = False
                                 if last_search:
                                     time_diff = timezone.now() - last_search.created_at
                                     if time_diff.total_seconds() < 300:  # 5 minutos
-                                        should_save = False
+                                        should_update = True
                                 
-                                if should_save:
+                                if should_update:
+                                    # Actualizar búsqueda existente con el nuevo conteo
+                                    last_search.results_count = results_count
+                                    last_search.category_name = category_name
+                                    last_search.save()
+                                    logger.info(f"Búsqueda de best sellers actualizada en historial: {category_search} ({category_id}) - {results_count} resultados")
+                                else:
+                                    # Crear nueva entrada en el historial
                                     BestSellerSearch.objects.create(
                                         user=request.user,
                                         category_id=category_id,
                                         category_search=category_search,
-                                        category_name=category_name
+                                        category_name=category_name,
+                                        results_count=results_count
                                     )
-                                    logger.info(f"Búsqueda de best sellers guardada en historial: {category_search} ({category_id})")
+                                    logger.info(f"Búsqueda de best sellers guardada en historial: {category_search} ({category_id}) - {results_count} resultados")
                             except Exception as e:
                                 # No fallar si hay error al guardar el historial
                                 logger.warning(f"Error guardando búsqueda en historial: {e}")
@@ -1688,6 +1722,13 @@ def best_sellers_view(request):
             logger.warning(f"Error obteniendo búsquedas recientes: {e}")
             recent_searches = []
         
+        # Parámetros para la paginación
+        extra_pagination_params = {}
+        if category_id:
+            extra_pagination_params['category_id'] = category_id
+        if category_search:
+            extra_pagination_params['category_search'] = category_search
+        
         context = {
             'category_id': category_id,
             'category_search': category_search,  # Para pre-llenar el input
@@ -1696,6 +1737,7 @@ def best_sellers_view(request):
             'products': page_obj if page_obj else [],
             'breadcrumbs': breadcrumbs,
             'recent_searches': recent_searches,
+            'extra_pagination_params': extra_pagination_params,
         }
         
         return render(request, 'products/best_sellers.html', context)
@@ -1706,6 +1748,28 @@ def best_sellers_view(request):
         logger.error(f"Traceback completo: {traceback.format_exc()}")
         messages.error(request, f'Error procesando la solicitud: {str(e)[:100]}')
         return redirect('products:list')
+
+
+@login_required
+@require_http_methods(["POST"])
+def clear_search_history_view(request):
+    """
+    Vista AJAX para limpiar el historial de búsquedas de best sellers del usuario
+    """
+    try:
+        deleted_count, _ = BestSellerSearch.objects.filter(user=request.user).delete()
+        logger.info(f"Historial de búsquedas limpiado para usuario {request.user.username}: {deleted_count} registros eliminados")
+        return JsonResponse({
+            'success': True,
+            'message': f'Se eliminaron {deleted_count} búsqueda(s) del historial.',
+            'deleted_count': deleted_count
+        })
+    except Exception as e:
+        logger.error(f"Error limpiando historial de búsquedas: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error al limpiar el historial'
+        }, status=500)
 
 
 @login_required

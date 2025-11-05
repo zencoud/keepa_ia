@@ -368,6 +368,12 @@ class BestSellerSearch(models.Model):
         blank=True,
         help_text="Nombre completo de la categoría (si está disponible)"
     )
+    results_count = models.IntegerField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text="Número de resultados encontrados en esta búsqueda"
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         help_text="Fecha y hora de la búsqueda"

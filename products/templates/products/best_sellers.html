@@ -24,24 +24,42 @@
             
             <!-- Recent Searches -->
             {% if recent_searches %}
-            <div class="mb-6 max-w-2xl mx-auto">
-                <h3 class="text-sm font-semibold text-slate-300 mb-3 flex items-center">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Búsquedas Recientes
-                </h3>
-                <div class="flex flex-wrap gap-2">
+            <div class="mb-6 w-full">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-slate-300 flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Búsquedas Recientes
+                    </h3>
+                    <button id="clearHistoryBtn" class="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Limpiar
+                    </button>
+                </div>
+                <div class="flex flex-wrap gap-2 justify-start items-center">
                     {% for search in recent_searches %}
                         <a href="{% url 'products:best_sellers' %}?category_id={{ search.category_id }}&category_search={{ search.category_search|urlencode }}" 
-                           class="inline-flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-[40px] text-sm transition-all duration-200 border border-white/20 hover:border-white/40 backdrop-blur-sm">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           class="inline-flex items-center px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-full text-sm transition-all duration-200 border border-white/20 hover:border-white/40 backdrop-blur-sm whitespace-nowrap flex-shrink-0">
+                            <svg class="w-3.5 h-3.5 mr-1.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
-                            {{ search.category_search|truncatechars:40 }}
+                            <span class="truncate max-w-xs">{{ search.category_search|truncatechars:35 }}</span>
+                            {% if search.category_id %}
+                                <span class="ml-1.5 px-1.5 py-0.5 bg-slate-600/40 text-slate-300 rounded-full text-xs font-mono flex-shrink-0" title="ID de categoría: {{ search.category_id }}">
+                                    #{{ search.category_id }}
+                                </span>
+                            {% endif %}
+                            {% if search.results_count is not None %}
+                                <span class="ml-1.5 px-1.5 py-0.5 bg-keepa-blue-500/30 text-keepa-blue-200 rounded-full text-xs font-semibold flex-shrink-0">
+                                    {{ search.results_count }}
+                                </span>
+                            {% endif %}
                             {% if search.created_at %}
-                                <span class="ml-2 text-xs text-slate-400">
-                                    &nbsp;{{ search.created_at|timesince }} atrás
+                                <span class="ml-1.5 text-xs text-slate-400 flex-shrink-0">
+                                    {{ search.created_at|timesince }}
                                 </span>
                             {% endif %}
                         </a>
@@ -102,7 +120,7 @@
                 </div>
                 
                 <!-- Products Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     {% for product in products %}
                         <div class="glass-card glass-card-hover p-6 hover:scale-105 transition-transform duration-200">
                             <!-- Product Image -->
@@ -166,7 +184,7 @@
                 </div>
                 
                 <!-- Pagination -->
-                {% component "pagination" page_obj=page_obj %}{% endcomponent %}
+                {% component "pagination" page_obj=page_obj extra_params=extra_pagination_params %}{% endcomponent %}
             {% else %}
                 {% component "empty_state" 
                     icon="📦"
@@ -305,6 +323,42 @@
     {% elif category_id and category_name %}
         categorySearchInput.value = '{{ category_name|escapejs }}';
     {% endif %}
+    
+    // Función para limpiar el historial de búsquedas
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener('click', function() {
+            if (!confirm('¿Estás seguro de que quieres limpiar todo el historial de búsquedas?')) {
+                return;
+            }
+            
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                              document.cookie.split('; ')
+                                .find(row => row.startsWith('csrftoken='))
+                                ?.split('=')[1];
+            
+            fetch('{% url "products:clear_search_history" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Recargar la página para actualizar el historial
+                    window.location.reload();
+                } else {
+                    alert('Error al limpiar el historial: ' + (data.error || 'Error desconocido'));
+                }
+            })
+            .catch(error => {
+                console.error('Error limpiando historial:', error);
+                alert('Error al limpiar el historial');
+            });
+        });
+    }
     
     // Función para hacer fetch del producto y redirigir al detalle
     function fetchProductAndRedirect(event, asin) {

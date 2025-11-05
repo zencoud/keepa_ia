@@ -31,4 +31,5 @@ urlpatterns = [
     path('categories/search/', views.search_categories_view, name='search_categories'),
     path('bestsellers/', views.best_sellers_view, name='best_sellers'),
     path('bestsellers/api/', views.best_sellers_api_view, name='best_sellers_api'),
+    path('bestsellers/clear-history/', views.clear_search_history_view, name='clear_search_history'),
 ]
