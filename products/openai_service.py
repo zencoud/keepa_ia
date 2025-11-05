@@ -872,12 +872,10 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional.
             logger.info(f"[PASO 3] Tamaño del prompt: {len(prompt)} caracteres")
             
             # Llamar a OpenAI con respuesta en Markdown (PASO 3)
-            # Detectar si necesita más tokens (historiales completos)
-            asks_for_full_history = user_request and any(word in user_request.lower() for word in ['historial', 'histórico', 'historia', 'completo', 'todos', 'todas', 'todo', 'completa'])
-            # Aumentar significativamente max_tokens para historiales completos
-            max_tokens = 8000 if asks_for_full_history else 4000
+            # Siempre usar max_tokens alto para análisis completos con historiales
+            max_tokens = 8000  # Suficiente para análisis completos con todos los historiales
             
-            logger.info(f"[PASO 3] Generando contenido Markdown con max_tokens={max_tokens} (historial completo: {asks_for_full_history})")
+            logger.info(f"[PASO 3] Generando contenido Markdown con max_tokens={max_tokens} (análisis completo)")
             logger.info(f"[PASO 3] Llamando a OpenAI API con modelo gpt-4o...")
             
             response = self.client.chat.completions.create(
@@ -890,15 +888,19 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional.
                             "COMPRENDES que NO puedes generar archivos PDF/Excel/CSV directamente (eres una IA de lenguaje), "
                             "por lo que tu trabajo es generar contenido estructurado en Markdown que será convertido técnicamente.\n\n"
                             "REGLAS CRÍTICAS:\n"
-                            "1. Genera EXACTAMENTE lo que el usuario pidió, nada más, nada menos\n"
-                            "2. Si pide una tabla, COPIA TODA la tabla del contexto con TODAS las filas\n"
-                            "3. Si pide 'historial completo' o 'todos los datos', incluye TODOS los registros disponibles\n"
-                            "4. NO resumas, NO limites filas, NO omitas datos\n"
-                            "5. NO inventes datos - usa SOLO los del contexto proporcionado\n"
-                            "6. NO incluyas delimitadores de código (```markdown o ```)\n"
-                            "7. Usa formato Markdown puro: tablas (| |), títulos (# ##), listas (-, *)\n"
-                            "8. Termina siempre con: '---\\n*Generado por Keepa AI*'\n\n"
-                            "IMPORTANTE: Si el contexto tiene una tabla con 500 filas, DEBES copiar las 500 filas completas."
+                            "1. **SIEMPRE genera un análisis COMPLETO y DETALLADO** con TODA la información del producto\n"
+                            "2. **SIEMPRE incluye TODOS los historiales completos** en formato tabla - NO resumas, NO limites\n"
+                            "3. Si el contexto tiene una tabla con datos, COPIA TODA la tabla con TODAS las filas\n"
+                            "4. Incluye: información básica, precios actuales, análisis de precios, historiales completos, "
+                            "análisis de ventas, análisis de reputación, datos de reseñas y recomendación final\n"
+                            "5. NO resumas, NO limites filas, NO omitas datos - sé exhaustivo\n"
+                            "6. NO inventes datos - usa SOLO los del contexto proporcionado\n"
+                            "7. NO incluyas delimitadores de código (```markdown o ```)\n"
+                            "8. Usa formato Markdown puro: tablas (| |), títulos (# ##), listas (-, *)\n"
+                            "9. Organiza con títulos claros: # Análisis Completo, ## Información del Producto, etc.\n"
+                            "10. Termina siempre con: '---\\n*Generado por Keepa AI*'\n\n"
+                            "IMPORTANTE: Si el contexto tiene una tabla con 500 filas, DEBES copiar las 500 filas completas. "
+                            "Si el contexto tiene múltiples historiales, incluye TODOS en formato tabla."
                         )
                     },
                     {
@@ -924,9 +926,11 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional.
             logger.error(f"[PASO 3] Error generando contenido de documento: {e}")
             logger.error(f"[PASO 3] Tipo de error: {type(e).__name__}")
             logger.error(f"[PASO 3] User request: {user_request}")
+            logger.error(f"[PASO 3] Product ASIN: {product_data.get('asin', 'N/A')}")
             import traceback
             logger.error(f"[PASO 3] Traceback completo:\n{traceback.format_exc()}")
-            # Retornar contenido básico en Markdown
+            # Retornar análisis completo de fallback (mejorado)
+            logger.warning(f"[PASO 3] Usando análisis completo de fallback debido a error")
             return self._get_fallback_markdown(product_data, user_request)
     
     def _clean_markdown_content(self, content: str) -> str:
@@ -1069,29 +1073,17 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional.
                             context += f"- Rango: ${min_price:.2f} - ${max_price:.2f}\n"
                             context += f"- Promedio: ${avg_price:.2f}\n"
                             
-                            # Si tiene fechas, incluir todas (útil para historiales)
+                            # Si tiene fechas, incluir TODOS los precios en formato tabla (para análisis completo)
                             if times and len(times) == len(prices):
-                                # Si pide historial, incluir TODOS los precios en formato tabla
-                                asks_for_history = user_request and any(word in user_request.lower() for word in ['historial', 'histórico', 'historia', 'completo', 'todos', 'precios'])
-                                display_count = len(prices) if asks_for_history else min(50, len(prices))
-                                start_idx = len(prices) - display_count
-                                
-                                if asks_for_history:
-                                    # Formato tabla para historial completo
-                                    valid_prices = [i for i in range(start_idx, len(prices)) if prices[i] > 0]
-                                    context += f"\n**Historial completo de precios {type_label} ({len(valid_prices)} registros):**\n\n"
-                                    context += "| Fecha | Precio |\n"
-                                    context += "|-------|--------|\n"
-                                    logger.info(f"Incluyendo {len(valid_prices)} precios {type_label} en formato tabla para historial completo")
-                                    for i in range(start_idx, len(prices)):
-                                        if prices[i] > 0:
-                                            context += f"| {times[i]} | ${prices[i] / 100:.2f} |\n"
-                                else:
-                                    # Formato lista para vista resumida
-                                    context += f"\n**Últimos precios ({display_count} registros):**\n\n"
-                                    for i in range(start_idx, len(prices)):
-                                        if prices[i] > 0:
-                                            context += f"- {times[i]}: ${prices[i] / 100:.2f}\n"
+                                # Siempre incluir TODOS los precios en formato tabla para análisis completo
+                                valid_prices = [i for i in range(len(prices)) if prices[i] > 0]
+                                context += f"\n**Historial completo de precios {type_label} ({len(valid_prices)} registros):**\n\n"
+                                context += "| Fecha | Precio |\n"
+                                context += "|-------|--------|\n"
+                                logger.info(f"Incluyendo {len(valid_prices)} precios {type_label} en formato tabla (historial completo)")
+                                for i in range(len(prices)):
+                                    if prices[i] > 0:
+                                        context += f"| {times[i]} | ${prices[i] / 100:.2f} |\n"
         
         # Sales Rank History
         sales_rank_history = product_data.get('sales_rank_history', {})
@@ -1103,25 +1095,14 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional.
                 context += "\n## Historial de Sales Rank (Ventas)\n"
                 context += f"- Total de registros: {len(values)}\n"
                 if times and len(times) == len(values):
-                    # Si pide historial completo, incluir TODOS los datos en formato tabla
-                    asks_for_history = user_request and any(word in user_request.lower() for word in ['historial', 'histórico', 'historia', 'completo', 'todos', 'ventas', 'sales'])
-                    display_count = len(values) if asks_for_history else min(20, len(values))
-                    start_idx = len(values) - display_count
-                    
-                    if asks_for_history:
-                        # Formato tabla para historial completo
-                        context += f"\n**Historial completo de ventas ({len(values)} registros):**\n\n"
-                        context += "| Fecha | Sales Rank |\n"
-                        context += "|-------|------------|\n"
-                        for i in range(start_idx, len(values)):
-                            if values[i] > 0:
-                                context += f"| {times[i]} | #{values[i]:,} |\n"
-                    else:
-                        # Formato lista para vista resumida
-                        context += f"\n**Últimos registros ({display_count}):**\n\n"
-                        for i in range(start_idx, len(values)):
-                            if values[i] > 0:
-                                context += f"- {times[i]}: #{values[i]:,}\n"
+                    # Siempre incluir TODOS los datos en formato tabla para análisis completo
+                    context += f"\n**Historial completo de ventas ({len(values)} registros):**\n\n"
+                    context += "| Fecha | Sales Rank |\n"
+                    context += "|-------|------------|\n"
+                    logger.info(f"Incluyendo {len(values)} registros de sales rank en formato tabla (historial completo)")
+                    for i in range(len(values)):
+                        if values[i] > 0:
+                            context += f"| {times[i]} | #{values[i]:,} |\n"
         
         # Rating History
         rating_history = product_data.get('rating_history', {})
@@ -1132,17 +1113,20 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional.
             if values and len(values) > 0:
                 context += "\n## Historial de Ratings\n"
                 if times and len(times) == len(values):
-                    context += "\n**Últimos registros:**\n\n"
-                    display_count = min(15, len(values))
-                    start_idx = len(values) - display_count
-                    for i in range(start_idx, len(values)):
+                    # Siempre incluir TODOS los ratings en formato tabla para análisis completo
+                    context += f"\n**Historial completo de ratings ({len(values)} registros):**\n\n"
+                    context += "| Fecha | Rating |\n"
+                    context += "|-------|--------|\n"
+                    logger.info(f"Incluyendo {len(values)} registros de ratings en formato tabla (historial completo)")
+                    for i in range(len(values)):
                         if values[i] > 0:
-                            context += f"- {times[i]}: {values[i]:.1f} estrellas\n"
+                            context += f"| {times[i]} | {values[i]:.1f} estrellas |\n"
         
         # Construir instrucción según solicitud del usuario
         if user_request:
-            # Detectar si pide historial completo
-            asks_for_history = any(word in user_request.lower() for word in ['historial', 'histórico', 'historia', 'completo', 'todos', 'todas'])
+            # Detectar si pide historial completo o análisis completo
+            asks_for_history = any(word in user_request.lower() for word in ['historial', 'histórico', 'historia', 'completo', 'todos', 'todas', 'análisis completo', 'analisis completo', 'detallado'])
+            asks_for_complete_analysis = any(word in user_request.lower() for word in ['análisis completo', 'analisis completo', 'análisis detallado', 'analisis detallado', 'completo', 'todos los datos', 'toda la información'])
             
             # Contar registros disponibles
             price_count = len(price_history.get('NEW', {}).get('prices', [])) if price_history else 0
@@ -1155,48 +1139,62 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional.
 
 # TU TAREA:
 
-Genera EXACTAMENTE lo que pidió el usuario. COPIA DIRECTAMENTE las tablas del contexto arriba.
+Genera un análisis COMPLETO y DETALLADO del producto con TODA la información disponible. Incluye:
+
+1. **Información Básica del Producto** (título, ASIN, marca, categorías, etc.)
+2. **Precios Actuales** (nuevo, Amazon, usado) con comparación
+3. **Análisis de Precios** (promedio, mínimo, máximo, tendencia)
+4. **Historial Completo de Precios** (TODAS las fechas y precios disponibles en formato tabla)
+5. **Análisis de Ventas** (Sales Rank actual y tendencia)
+6. **Historial Completo de Sales Rank** (TODAS las fechas y rankings disponibles en formato tabla)
+7. **Análisis de Reputación** (rating actual, total de reseñas, distribución de calificaciones)
+8. **Historial Completo de Ratings** (TODAS las fechas y calificaciones disponibles)
+9. **Datos de Reseñas** (distribución por estrellas, porcentaje de positivas)
+10. **Recomendación Final** basada en todos los datos
 
 **REGLAS CRÍTICAS:**
-1. Si pidió "historial de precios" → Busca arriba la sección "## Historial de Precios" y COPIA TODA la tabla que está ahí
-2. Si pidió "historial de ventas" → Busca arriba la sección "## Historial de Sales Rank" y COPIA TODA la tabla que está ahí
-3. Si pidió "dos tablas" → Busca y copia ambas tablas completas del contexto
-4. Si pidió "últimos 3 meses" → Filtra solo esos 3 meses de las tablas del contexto
-5. NO inventes datos, NO crees nuevas tablas, NO resumas
-6. **COPIA LITERALMENTE** las tablas del contexto arriba
+1. **SIEMPRE incluye TODOS los historiales completos** en formato tabla (| Fecha | Valor |)
+2. **NO resumas, NO limites** - incluye TODAS las filas de los historiales
+3. **NO inventes datos** - usa SOLO los datos del contexto arriba
+4. **COPIA LITERALMENTE** las tablas del contexto arriba
+5. **Organiza el contenido** con títulos claros (# ##)
+6. **Sé exhaustivo** - incluye toda la información disponible del producto
 
-**{"⚠️ CRÍTICO: El usuario pidió HISTORIAL COMPLETO. Arriba en el contexto hay tablas con TODOS los datos. DEBES COPIAR esas tablas completas. NO las reescribas, NO las limites, NO las resumas. Si ves una tabla arriba con {price_count} precios, copia TODAS las {price_count} filas. Si ves una tabla con {sales_count} ventas, copia TODAS las {sales_count} filas." if asks_for_history else ""}**
+**{"⚠️ CRÍTICO: El usuario pidió ANÁLISIS COMPLETO. DEBES incluir TODAS las tablas de historiales completos del contexto. NO las limites, NO las resumas. Si ves una tabla arriba con {price_count} precios, copia TODAS las {price_count} filas. Si ves una tabla con {sales_count} ventas, copia TODAS las {sales_count} filas." if asks_for_complete_analysis else ""}**
 
-**PASOS:**
-1. Busca en el contexto arriba la sección relevante (Historial de Precios o Historial de Ventas)
-2. Localiza la tabla con formato: | Fecha | Precio | o | Fecha | Sales Rank |
-3. COPIA toda esa tabla línea por línea
-4. Pega el título (# ...)
-5. Pega la tabla completa
-6. Repite si pidió dos tablas
-7. Agrega: ---\\n*Generado por Keepa AI*
+**ESTRUCTURA DEL DOCUMENTO:**
 
-**EJEMPLO DE LO QUE DEBES HACER:**
+# Análisis Completo del Producto
 
-Si arriba en el contexto ves:
-```
-## Historial de Precios
-| Fecha | Precio |
-|-------|--------|
-| 2024-11-01 | $99.99 |
-| 2024-10-31 | $98.50 |
-... (500 filas más)
-```
+## Información del Producto
+[Incluye: título, ASIN, marca, categorías, binding, color, disponibilidad, imagen]
 
-Y el usuario pide "historial de precios", tu respuesta debe ser:
+## Precios Actuales
+[Incluye: precios actuales de nuevo, Amazon y usado con comparación]
 
-# Historial de Precios
+## Análisis de Precios
+[Incluye: promedio, mínimo, máximo, rango, tendencia]
 
-| Fecha | Precio |
-|-------|--------|
-| 2024-11-01 | $99.99 |
-| 2024-10-31 | $98.50 |
-... (las 500 filas completas del contexto)
+## Historial Completo de Precios
+[COPIA TODA la tabla del contexto con TODAS las fechas y precios]
+
+## Análisis de Ventas y Popularidad
+[Incluye: Sales Rank actual, tendencia, análisis de popularidad]
+
+## Historial Completo de Sales Rank
+[COPIA TODA la tabla del contexto con TODAS las fechas y rankings]
+
+## Análisis de Reputación y Calidad
+[Incluye: rating actual, total de reseñas, distribución de calificaciones, análisis de calidad]
+
+## Historial Completo de Ratings
+[COPIA TODA la tabla del contexto con TODAS las fechas y calificaciones]
+
+## Datos de Reseñas
+[Incluye: distribución por estrellas, porcentaje de positivas, análisis de confianza]
+
+## Recomendación Final
+[Incluye: recomendación basada en todos los datos analizados]
 
 ---
 *Generado por Keepa AI*
@@ -1205,12 +1203,22 @@ Y el usuario pide "historial de precios", tu respuesta debe ser:
             instruction = """
 # TU TAREA:
 
-El usuario pidió un documento general. Genera un resumen conciso con:
-- Precios actuales
-- Rating y reseñas
-- Tendencia de ventas
+El usuario pidió un análisis del producto. Genera un análisis COMPLETO y DETALLADO que incluya:
 
-Usa tablas y sé breve.
+1. **Información Básica del Producto** (título, ASIN, marca, categorías, etc.)
+2. **Precios Actuales y Análisis** (nuevo, Amazon, usado, promedio, mínimo, máximo, tendencia)
+3. **Historial Completo de Precios** (TODAS las fechas y precios en formato tabla)
+4. **Análisis de Ventas** (Sales Rank actual, tendencia)
+5. **Historial Completo de Sales Rank** (TODAS las fechas y rankings en formato tabla)
+6. **Análisis de Reputación** (rating, reseñas, distribución de calificaciones)
+7. **Historial Completo de Ratings** (TODAS las fechas y calificaciones en formato tabla)
+8. **Recomendación Final** basada en todos los datos
+
+**IMPORTANTE:**
+- Incluye TODOS los historiales completos (NO resumas, NO limites)
+- Usa tablas para los historiales (| Fecha | Valor |)
+- Organiza con títulos claros (# ##)
+- Sé exhaustivo - incluye TODA la información disponible del contexto arriba
 """
         
         # Agregar explicación de limitación de IA al inicio
@@ -1353,37 +1361,161 @@ REGLAS CRÍTICAS:
     
     def _get_fallback_markdown(self, product_data: Dict[str, Any], user_request: str = None) -> str:
         """
-        Genera contenido básico en Markdown como fallback
+        Genera contenido completo en Markdown como fallback cuando hay error con OpenAI
         
         Args:
             product_data: Datos del producto
             user_request: Solicitud del usuario
             
         Returns:
-            String con Markdown básico
+            String con Markdown completo (fallback)
         """
-        logger.warning(f"[FALLBACK] Generando contenido básico de fallback para request: {user_request}")
+        logger.warning(f"[FALLBACK] Generando análisis completo de fallback para request: {user_request}")
         
         title = product_data.get('title', 'Producto')
         asin = product_data.get('asin', 'N/A')
-        current_price_raw = product_data.get('current_price_new', 0)
-        current_price = (current_price_raw / 100) if current_price_raw else 0.0
+        brand = product_data.get('brand', 'N/A')
+        binding = product_data.get('binding', 'N/A')
+        categories = product_data.get('categories', [])
+        
+        current_price_new_raw = product_data.get('current_price_new', 0)
+        current_price_amazon_raw = product_data.get('current_price_amazon', 0)
+        current_price_used_raw = product_data.get('current_price_used', 0)
+        
+        current_price_new = (current_price_new_raw / 100) if current_price_new_raw else None
+        current_price_amazon = (current_price_amazon_raw / 100) if current_price_amazon_raw else None
+        current_price_used = (current_price_used_raw / 100) if current_price_used_raw else None
+        
         rating = product_data.get('rating', 0) or 0
         review_count = product_data.get('review_count', 0) or 0
+        sales_rank_current = product_data.get('sales_rank_current')
         
-        markdown = f"""# Análisis de Producto - Keepa AI
+        # Análisis de precios
+        price_history = product_data.get('price_history', {})
+        price_analysis = ""
+        if price_history.get('NEW', {}).get('prices'):
+            prices = [p / 100 for p in price_history['NEW']['prices'] if p > 0]
+            if prices:
+                min_price = min(prices)
+                max_price = max(prices)
+                avg_price = sum(prices) / len(prices)
+                price_analysis = f"""
+| Métrica | Valor |
+|---------|-------|
+| Precio Promedio | ${avg_price:.2f} |
+| Precio Mínimo | ${min_price:.2f} |
+| Precio Máximo | ${max_price:.2f} |
+| Rango | ${max_price - min_price:.2f} |
+"""
+        
+        # Historial de precios
+        price_history_table = ""
+        if price_history.get('NEW', {}).get('prices') and price_history.get('NEW', {}).get('formatted_times'):
+            prices = price_history['NEW']['prices']
+            times = price_history['NEW']['formatted_times']
+            if len(prices) == len(times):
+                price_history_table = "\n## Historial Completo de Precios\n\n"
+                price_history_table += "| Fecha | Precio |\n"
+                price_history_table += "|-------|--------|\n"
+                for i in range(len(prices)):
+                    if prices[i] > 0:
+                        price_history_table += f"| {times[i]} | ${prices[i] / 100:.2f} |\n"
+        
+        # Historial de Sales Rank
+        sales_rank_history_table = ""
+        sales_rank_history = product_data.get('sales_rank_history', {})
+        if sales_rank_history.get('values') and sales_rank_history.get('formatted_times'):
+            values = sales_rank_history['values']
+            times = sales_rank_history['formatted_times']
+            if len(values) == len(times):
+                sales_rank_history_table = "\n## Historial Completo de Sales Rank\n\n"
+                sales_rank_history_table += "| Fecha | Sales Rank |\n"
+                sales_rank_history_table += "|-------|------------|\n"
+                for i in range(len(values)):
+                    if values[i] > 0:
+                        sales_rank_history_table += f"| {times[i]} | #{values[i]:,} |\n"
+        
+        # Historial de Ratings
+        rating_history_table = ""
+        rating_history = product_data.get('rating_history', {})
+        if rating_history.get('values') and rating_history.get('formatted_times'):
+            values = rating_history['values']
+            times = rating_history['formatted_times']
+            if len(values) == len(times):
+                rating_history_table = "\n## Historial Completo de Ratings\n\n"
+                rating_history_table += "| Fecha | Rating |\n"
+                rating_history_table += "|-------|--------|\n"
+                for i in range(len(values)):
+                    if values[i] > 0:
+                        rating_history_table += f"| {times[i]} | {values[i]:.1f} estrellas |\n"
+        
+        # Datos de reseñas
+        reviews_section = ""
+        reviews_data = product_data.get('reviews_data', {})
+        if reviews_data.get('rating_distribution'):
+            dist = reviews_data['rating_distribution']
+            total = sum(dist.values())
+            if total > 0:
+                positive = (dist.get(5, 0) + dist.get(4, 0)) / total * 100
+                reviews_section = f"""
+## Datos de Reseñas
+
+| Métrica | Valor |
+|---------|-------|
+| Total de Reseñas | {review_count:,} |
+| Rating Promedio | {rating:.1f} estrellas |
+| Reviews Positivas (4-5★) | {positive:.1f}% |
+"""
+        
+        markdown = f"""# Análisis Completo del Producto - Keepa AI
 
 ## Información del Producto
 
 - **Título**: {title}
 - **ASIN**: {asin}
-- **Precio Actual**: ${current_price:.2f}
-- **Rating**: {rating:.1f} estrellas
-- **Total de Reseñas**: {review_count:,}
+- **Marca**: {brand}
+- **Categoría**: {binding}
+{f"- **Categorías**: {', '.join(str(c) for c in categories[:5])}" if categories else ""}
 
-## Nota
+## Precios Actuales
 
-Este es un análisis básico automático. Para un análisis más detallado, por favor intenta de nuevo.
+| Tipo | Precio |
+|------|--------|
+{f"| Nuevo | ${current_price_new:.2f} |" if current_price_new else ""}
+{f"| Amazon | ${current_price_amazon:.2f} |" if current_price_amazon else ""}
+{f"| Usado | ${current_price_used:.2f} |" if current_price_used else ""}
+
+## Análisis de Precios
+{price_analysis if price_analysis else "| Métrica | Valor |\n|---------|-------|\n| Datos no disponibles | - |"}
+{price_history_table if price_history_table else ""}
+
+## Análisis de Ventas y Popularidad
+
+| Métrica | Valor |
+|---------|-------|
+{f"| Sales Rank Actual | #{sales_rank_current:,} |" if sales_rank_current else "| Sales Rank Actual | No disponible |"}
+
+{sales_rank_history_table if sales_rank_history_table else ""}
+
+## Análisis de Reputación y Calidad
+
+| Métrica | Valor |
+|---------|-------|
+| Rating Actual | {rating:.1f} estrellas |
+| Total de Reseñas | {review_count:,} |
+
+{rating_history_table if rating_history_table else ""}
+{reviews_section if reviews_section else ""}
+
+## Recomendación Final
+
+Basado en los datos disponibles:
+- **Precio**: {"Precio actual: $" + f"{current_price_new:.2f}" if current_price_new else "Precio no disponible"}
+- **Calidad**: {"Excelente" if rating >= 4.5 else "Buena" if rating >= 4.0 else "Regular" if rating >= 3.0 else "Baja"} ({rating:.1f} estrellas)
+- **Popularidad**: {"Alta" if sales_rank_current and sales_rank_current < 10000 else "Media" if sales_rank_current and sales_rank_current < 100000 else "Baja" if sales_rank_current else "No disponible"} (#{sales_rank_current:,} si está disponible)
+
+---
+*Generado por Keepa AI*
 """
         
         return markdown

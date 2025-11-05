@@ -1247,12 +1247,12 @@ def generate_document_view(request):
                 'error': 'ASIN es requerido'
             }, status=400)
         
-        # Validar formato
-        valid_formats = ['pdf', 'csv', 'txt', 'xlsx', 'json', 'md']
+        # Validar formato - Solo soportamos PDF, Excel y TXT
+        valid_formats = ['pdf', 'txt', 'xlsx']
         if format_type not in valid_formats:
             return JsonResponse({
                 'success': False,
-                'error': f'Formato no válido. Usa: {", ".join(valid_formats)}'
+                'error': f'Formato no válido. Formatos soportados: PDF, Excel (xlsx) y TXT'
             }, status=400)
         
         try:
@@ -1306,62 +1306,52 @@ def generate_document_view(request):
             'queried_by': product.queried_by.username if product.queried_by else None,
         }
         
-        # FLUJO DE DOBLE FILTRADO CON IA
-        # Solo aplicar filtros si hay user_request (solicitud en lenguaje natural)
-        if user_request:
+        # FLUJO DE GENERACIÓN DE DOCUMENTO
+        # Siempre generar análisis completo, con o sin user_request
+        try:
+            openai_service = OpenAIService()
+            
+            # Determinar la solicitud a usar
+            if user_request:
+                logger.info(f"[FLUJO] Generando documento con solicitud específica: '{user_request}'")
+                # Usar la solicitud del usuario
+                request_text = user_request
+            else:
+                logger.info(f"[FLUJO] Generando análisis completo (no hay user_request específico)")
+                # Generar con solicitud de análisis completo por defecto
+                request_text = "genera un análisis completo y detallado del producto con toda la información disponible incluyendo historiales completos"
+            
+            # Generar contenido con TODOS los datos disponibles
+            logger.info(f"[FLUJO] Iniciando generación de contenido Markdown")
+            markdown_content = openai_service.generate_document_content(product_data, user_request=request_text)
+            content = markdown_content
+            logger.info(f"[FLUJO] ✓ Contenido generado ({len(markdown_content)} caracteres)")
+                
+        except ValueError as e:
+            # Error de configuración (OpenAI no configurado)
+            logger.error(f"OpenAI no configurado: {e}")
+            # Usar fallback mejorado que genera análisis completo
+            logger.warning(f"[FLUJO] Usando análisis completo de fallback (OpenAI no disponible)")
+            openai_service = OpenAIService()
             try:
-                openai_service = OpenAIService()
-                
-                # PASO 1: Detectar intención de documento
-                logger.info(f"[FLUJO] Iniciando doble filtrado para: '{user_request}'")
-                intent_result = openai_service.detect_document_intent(user_request)
-                
-                if not intent_result:
-                    logger.warning(f"[FLUJO] PASO 1 falló - No se detectó intención de documento")
-                    # Si no detecta intención, generar igual (por compatibilidad)
-                else:
-                    logger.info(f"[FLUJO] ✓ PASO 1 aprobado - Intención detectada: {intent_result}")
-                
-                # PASO 2: Confirmar con contexto del producto
-                confirmation = openai_service.confirm_document_generation(user_request, product_data)
-                
-                if not confirmation:
-                    logger.warning(f"[FLUJO] PASO 2 falló - Generación NO confirmada")
-                    return JsonResponse({
-                        'success': False,
-                        'error': 'No se pudo confirmar la intención de generar un documento. Por favor, reformula tu solicitud.'
-                    }, status=400)
-                
-                logger.info(f"[FLUJO] ✓ PASO 2 aprobado - Generación confirmada")
-                logger.info(f"[FLUJO] Campos a incluir: {confirmation.get('include_fields', {})}")
-                logger.info(f"[FLUJO] Enfoque: {confirmation.get('user_focus', 'N/A')}")
-                
-                # PASO 3: Generar contenido con TODOS los datos (el filtro ya determinó qué incluir)
-                logger.info(f"[FLUJO] Iniciando PASO 3 - Generación de contenido Markdown")
-                markdown_content = openai_service.generate_document_content(product_data, user_request=user_request)
-                content = markdown_content
-                logger.info(f"[FLUJO] ✓ PASO 3 completado - Contenido generado ({len(markdown_content)} caracteres)")
-                
-            except Exception as e:
-                logger.error(f"[FLUJO] Error en flujo de doble filtrado: {e}")
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Error en el proceso de generación del documento'
-                }, status=500)
-        else:
-            # Sin user_request, generar contenido directo (flujo legacy)
-            try:
-                openai_service = OpenAIService()
-                logger.info(f"[FLUJO] Generación directa sin filtros (no hay user_request)")
-                markdown_content = openai_service.generate_document_content(product_data, user_request=user_request)
-                content = markdown_content
+                content = openai_service._get_fallback_markdown(product_data, user_request)
+            except:
+                # Si incluso el fallback falla, usar contenido mínimo
+                content = f"# Análisis de Producto - Keepa AI\n\n## Información del Producto\n\n- **Título**: {product_data.get('title', 'N/A')}\n- **ASIN**: {product_data.get('asin', 'N/A')}\n- **Precio Actual**: ${product_data.get('current_price_new', 0) / 100:.2f}\n\n---\n*Generado por Keepa AI*"
                         
-            except Exception as e:
-                logger.error(f"Error generando contenido con OpenAI: {e}")
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Error generando el contenido del documento'
-                }, status=500)
+        except Exception as e:
+            logger.error(f"[FLUJO] Error generando contenido: {e}")
+            import traceback
+            logger.error(f"[FLUJO] Traceback: {traceback.format_exc()}")
+            # Usar fallback mejorado que genera análisis completo
+            logger.warning(f"[FLUJO] Usando análisis completo de fallback debido a error")
+            try:
+                openai_service = OpenAIService()
+                content = openai_service._get_fallback_markdown(product_data, user_request)
+            except Exception as fallback_error:
+                logger.error(f"[FLUJO] Error incluso en fallback: {fallback_error}")
+                # Último recurso: contenido mínimo
+                content = f"# Análisis de Producto - Keepa AI\n\n## Información del Producto\n\n- **Título**: {product_data.get('title', 'N/A')}\n- **ASIN**: {product_data.get('asin', 'N/A')}\n- **Precio Actual**: ${product_data.get('current_price_new', 0) / 100:.2f}\n\n---\n*Generado por Keepa AI*"
         
         # Generar documento en el formato solicitado
         try:
@@ -1376,11 +1366,6 @@ def generate_document_view(request):
                 filename = f"Keepa_Analysis_{safe_title}_{timestamp}.pdf"
                 content_type = 'application/pdf'
                 
-            elif format_type == 'csv':
-                buffer = doc_generator.generate_csv_from_markdown(content, product_data)
-                filename = f"Keepa_Analysis_{safe_title}_{timestamp}.csv"
-                content_type = 'text/csv'
-                
             elif format_type == 'txt':
                 buffer = doc_generator.generate_txt_from_markdown(content, product_data)
                 filename = f"Keepa_Analysis_{safe_title}_{timestamp}.txt"
@@ -1390,23 +1375,6 @@ def generate_document_view(request):
                 buffer = doc_generator.generate_excel_from_markdown(content, product_data)
                 filename = f"Keepa_Analysis_{safe_title}_{timestamp}.xlsx"
                 content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                
-            elif format_type == 'json':
-                buffer = doc_generator.generate_json_from_markdown(content, product_data)
-                filename = f"Keepa_Analysis_{safe_title}_{timestamp}.json"
-                content_type = 'application/json'
-                
-            elif format_type == 'md':
-                # Markdown directo - solo agregar metadata
-                output = StringIO()
-                output.write(f"# Keepa AI - Análisis de Producto\n\n")
-                output.write(f"**Generado:** {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n")
-                output.write(f"**Producto:** {product_data.get('title', 'N/A')} (ASIN: {product_data.get('asin', 'N/A')})\n\n")
-                output.write("---\n\n")
-                output.write(content)
-                buffer = output
-                filename = f"Keepa_Analysis_{safe_title}_{timestamp}.md"
-                content_type = 'text/markdown'
             
             # Crear respuesta con el archivo
             from django.http import HttpResponse
