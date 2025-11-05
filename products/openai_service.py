@@ -543,6 +543,103 @@ IMPORTANTE:
             # En caso de error, retornar None
             return None
     
+    def detect_product_mention(self, user_message: str) -> Optional[Dict[str, Any]]:
+        """
+        Detecta si el usuario menciona un producto específico en su mensaje
+        
+        Args:
+            user_message: Mensaje del usuario
+            
+        Returns:
+            Dict con 'product_name' (nombre del producto mencionado) o None si no se detecta
+            {
+                'product_name': 'Canary Flex Indoor/Outdoor',
+                'confidence': 'high' | 'medium' | 'low'
+            }
+        """
+        try:
+            prompt = f"""
+Analiza el siguiente mensaje del usuario y determina si menciona un producto específico por nombre.
+
+Mensaje del usuario: "{user_message}"
+
+Tu tarea es identificar si el usuario está preguntando sobre un producto específico mencionado por su nombre (ej: "Canary Flex Indoor", "Arlo Adjustable Mount", etc.).
+
+Ejemplos de mensajes que mencionan productos:
+- "sobre canary flex indoor que precio tiene?"
+- "¿cuánto cuesta el Arlo Adjustable Mount?"
+- "información del EZVIZ Husky HD"
+- "Canary Flex Indoor/Outdoor precio"
+- "dame detalles del Netgear Vma1100"
+
+Ejemplos de mensajes que NO mencionan productos específicos:
+- "¿cuál es el precio?" (sin mencionar producto)
+- "¿cómo está el producto?" (sin mencionar producto)
+- "muéstrame best sellers" (pregunta sobre categoría)
+- "productos más vendidos" (pregunta general)
+
+Responde SOLO con un JSON válido en este formato:
+{{
+    "has_product_mention": true o false,
+    "product_name": "nombre del producto extraído o null",
+    "confidence": "high" o "medium" o "low" o null
+}}
+
+IMPORTANTE:
+- Si detectas un producto mencionado, extrae su nombre completo o parcial (ej: "Canary Flex Indoor", "Arlo Adjustable")
+- Si no hay mención clara de producto, establece has_product_mention como false
+- confidence indica qué tan seguro estás de que es un producto específico
+"""
+            
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",  # Modelo pequeño y rápido para detección
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Eres un analizador de mensajes experto. Tu trabajo es identificar si el usuario menciona "
+                            "un producto específico por su nombre en su mensaje. Extrae el nombre del producto si existe. "
+                            "Responde siempre con JSON válido."
+                        )
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.2,  # Baja temperatura para detección consistente
+                max_tokens=200,
+                response_format={"type": "json_object"}
+            )
+            
+            result = json.loads(response.choices[0].message.content.strip())
+            
+            # Verificar si detectó mención de producto
+            has_mention = result.get('has_product_mention', False)
+            if not has_mention:
+                logger.info(f"[PRODUCT_DETECTION] No se detectó mención de producto: {result}")
+                return None
+            
+            product_name = result.get('product_name')
+            if not product_name or product_name in [None, 'null', '']:
+                logger.info(f"[PRODUCT_DETECTION] Se detectó mención pero no se extrajo nombre: {result}")
+                return None
+            
+            product_name = str(product_name).strip()
+            confidence = result.get('confidence', 'medium')
+            
+            logger.info(f"[PRODUCT_DETECTION] ✓ Producto detectado: '{product_name}' (confidence: {confidence})")
+            
+            return {
+                'product_name': product_name,
+                'confidence': confidence
+            }
+            
+        except Exception as e:
+            logger.error(f"[PRODUCT_DETECTION] Error detectando producto: {e}")
+            # En caso de error, retornar None
+            return None
+    
     def detect_document_intent(self, user_message: str) -> Optional[Dict[str, str]]:
         """
         Detecta si el usuario quiere generar un documento usando IA (PASO 1)

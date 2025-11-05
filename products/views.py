@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from datetime import timedelta, datetime
 from io import StringIO
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import json
 from .models import Product, PriceAlert, Notification, BestSellerSearch
 from .keepa_service import KeepaService
@@ -641,12 +641,169 @@ def detect_document_intent_view(request):
         }, status=500)
 
 
+def ensure_product_in_db(asin: str, user, keepa_service: KeepaService = None) -> Optional[Product]:
+    """
+    Asegura que un producto esté en la BD. Si no está, lo obtiene desde Keepa y lo guarda.
+    Similar a la lógica de product_detail_view pero reutilizable.
+    
+    Args:
+        asin: ASIN del producto
+        user: Usuario que realiza la consulta
+        keepa_service: Instancia de KeepaService (opcional, se crea si no se proporciona)
+        
+    Returns:
+        Product si se obtiene exitosamente, None si hay error
+    """
+    asin = asin.upper().strip()
+    
+    # Verificar si ya existe en BD
+    try:
+        product = Product.objects.get(asin=asin)
+        logger.info(f"[ENSURE_PRODUCT] Producto {asin} ya existe en BD")
+        return product
+    except Product.DoesNotExist:
+        pass
+    
+    # No existe, obtenerlo desde Keepa
+    logger.info(f"[ENSURE_PRODUCT] Producto {asin} no encontrado en BD, obteniendo desde Keepa...")
+    
+    try:
+        if not keepa_service:
+            keepa_service = KeepaService()
+        
+        # Obtener producto con historial completo (como en search_product_view)
+        product_data = keepa_service.query_product(asin)
+        
+        if not product_data or not product_data.get('asin'):
+            logger.warning(f"[ENSURE_PRODUCT] No se pudo obtener producto {asin} de Keepa")
+            return None
+        
+        # Verificar que tenga título
+        if not product_data.get('title') or not product_data['title'].strip():
+            logger.warning(f"[ENSURE_PRODUCT] Producto {asin} sin título válido")
+            return None
+        
+        # Guardar en BD
+        try:
+            with transaction.atomic():
+                product = Product.objects.create(
+                    asin=product_data['asin'],
+                    title=product_data['title'],
+                    brand=product_data.get('brand'),
+                    image_url=product_data.get('image_url'),
+                    color=product_data.get('color'),
+                    binding=product_data.get('binding'),
+                    availability_amazon=product_data.get('availability_amazon', 0),
+                    categories=product_data.get('categories', []),
+                    category_tree=product_data.get('category_tree', []),
+                    current_price_new=product_data.get('current_price_new'),
+                    current_price_amazon=product_data.get('current_price_amazon'),
+                    current_price_used=product_data.get('current_price_used'),
+                    sales_rank_current=product_data.get('sales_rank_current'),
+                    rating=product_data.get('rating'),
+                    review_count=product_data.get('review_count'),
+                    price_history=product_data.get('price_history', {}),
+                    rating_history=product_data.get('rating_history', {}),
+                    sales_rank_history=product_data.get('sales_rank_history', {}),
+                    reviews_data=product_data.get('reviews_data', {}),
+                    queried_by=user
+                )
+                
+                logger.info(f"[ENSURE_PRODUCT] Producto {asin} guardado exitosamente en BD")
+                return product
+                
+        except Exception as db_error:
+            logger.error(f"[ENSURE_PRODUCT] Error guardando producto {asin} en BD: {db_error}")
+            return None
+            
+    except ValueError as e:
+        logger.error(f"[ENSURE_PRODUCT] Error de configuración Keepa: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"[ENSURE_PRODUCT] Error obteniendo producto {asin} de Keepa: {e}")
+        return None
+
+
+def find_product_by_name(product_name: str, user) -> Optional[Product]:
+    """
+    Busca un producto por nombre en la base de datos
+    
+    Args:
+        product_name: Nombre del producto a buscar
+        user: Usuario que realiza la búsqueda
+        
+    Returns:
+        Product si se encuentra, None si no
+    """
+    if not product_name or not product_name.strip():
+        return None
+    
+    product_name_clean = product_name.strip().lower()
+    
+    # Buscar productos que contengan el nombre en el título
+    # Primero intentar búsqueda exacta (case insensitive)
+    products = Product.objects.filter(
+        title__icontains=product_name_clean
+    ).order_by('-last_updated')[:10]  # Limitar a 10 resultados
+    
+    if not products.exists():
+        # Si no hay resultados, intentar búsqueda por palabras clave
+        # Dividir el nombre en palabras y buscar productos que contengan todas o algunas
+        keywords = product_name_clean.split()
+        if len(keywords) > 1:
+            # Buscar productos que contengan al menos algunas de las palabras clave
+            from django.db.models import Q
+            query = Q()
+            for keyword in keywords:
+                if len(keyword) > 2:  # Ignorar palabras muy cortas
+                    query |= Q(title__icontains=keyword)
+            
+            if query:
+                products = Product.objects.filter(query).order_by('-last_updated')[:10]
+    
+    # Si hay resultados, intentar encontrar el mejor match
+    if products.exists():
+        # Priorizar productos con coincidencias exactas o muy cercanas
+        best_match = None
+        best_score = 0
+        
+        for product in products:
+            title_lower = product.title.lower()
+            score = 0
+            
+            # Calcular score de coincidencia
+            if product_name_clean in title_lower:
+                score += 100
+            
+            # Bonus por palabras clave coincidentes
+            keywords = product_name_clean.split()
+            for keyword in keywords:
+                if len(keyword) > 2 and keyword in title_lower:
+                    score += 10
+            
+            # Bonus por longitud similar
+            length_diff = abs(len(title_lower) - len(product_name_clean))
+            score -= length_diff / 10
+            
+            if score > best_score:
+                best_score = score
+                best_match = product
+        
+        if best_match and best_score > 50:  # Threshold mínimo
+            logger.info(f"[PRODUCT_SEARCH] Producto encontrado por nombre: '{product_name}' -> ASIN: {best_match.asin} (score: {best_score})")
+            return best_match
+    
+    logger.info(f"[PRODUCT_SEARCH] No se encontró producto por nombre: '{product_name}'")
+    return None
+
+
 @login_required
 @require_http_methods(["POST"])
 def ai_chat_view(request):
     """
     Vista AJAX para chat con IA usando datos completos de Keepa
     Maneja tanto preguntas sobre productos como sobre best sellers
+    Ahora detecta automáticamente productos mencionados en el mensaje
     """
     try:
         # Parsear datos del request
@@ -676,6 +833,55 @@ def ai_chat_view(request):
         except Exception as e:
             logger.warning(f"Error detectando intención de best sellers: {e}")
             # Continuar con chat normal si hay error en la detección
+        
+        # SEGUNDO: Si no hay ASIN pero el mensaje menciona un producto, intentar encontrarlo
+        if not asin:
+            try:
+                if 'openai_service' not in locals():
+                    openai_service = OpenAIService()
+                
+                # Detectar si el mensaje menciona un producto específico
+                product_mention = openai_service.detect_product_mention(user_message)
+                
+                if product_mention and product_mention.get('product_name'):
+                    product_name = product_mention.get('product_name')
+                    logger.info(f"[PRODUCT_DETECTION] Producto mencionado detectado: '{product_name}'")
+                    
+                    # Buscar el producto en la base de datos
+                    found_product = find_product_by_name(product_name, request.user)
+                    
+                    if found_product:
+                        # Usar el ASIN del producto encontrado
+                        asin = found_product.asin
+                        logger.info(f"[PRODUCT_DETECTION] Producto encontrado en BD: ASIN {asin}")
+                    else:
+                        # Si no está en BD, intentar buscar en best sellers recientes del usuario
+                        # Esto es útil cuando el usuario pregunta sobre un producto de una lista de best sellers
+                        logger.info(f"[PRODUCT_DETECTION] Producto '{product_name}' no encontrado en BD. Buscando en best sellers recientes...")
+                        
+                        try:
+                            # Buscar en las búsquedas de best sellers recientes del usuario
+                            # y ver si hay algún producto que coincida
+                            recent_searches = BestSellerSearch.objects.filter(
+                                user=request.user
+                            ).order_by('-created_at')[:5]  # Últimas 5 búsquedas
+                            
+                            # Esta es una búsqueda limitada - en el futuro se podría mejorar
+                            # guardando los ASINs de best sellers en una tabla temporal
+                            logger.info(f"[PRODUCT_DETECTION] Revisando {recent_searches.count()} búsquedas recientes de best sellers")
+                            
+                            # Nota: Keepa no tiene búsqueda directa por nombre, necesitaríamos ASIN
+                            # Por ahora, solo logueamos que no se encontró
+                            logger.warning(f"[PRODUCT_DETECTION] No se pudo buscar '{product_name}' en Keepa directamente (requiere ASIN). El producto debe estar en la BD para ser encontrado automáticamente.")
+                        except Exception as e:
+                            logger.warning(f"[PRODUCT_DETECTION] Error buscando producto en best sellers recientes: {e}")
+                
+            except ValueError as e:
+                logger.warning(f"OpenAI no configurado para detección de productos: {e}")
+                # Continuar sin detección de productos
+            except Exception as e:
+                logger.warning(f"Error detectando producto mencionado: {e}")
+                # Continuar sin detección de productos
         
         # Si no es solicitud de best sellers, continuar con el chat normal
         # Preparar datos del producto si hay ASIN
@@ -808,7 +1014,23 @@ def handle_best_sellers_request(request, user_message: str, intent_data: Dict[st
             # Limitar a top 20 para evitar respuestas muy largas
             asins_to_fetch = asins[:20]
             
-            # Consultar información básica de los productos
+            # Asegurar que todos los productos estén en BD
+            # Esto permite que luego se puedan consultar con información completa
+            logger.info(f"[BEST_SELLERS] Asegurando que {len(asins_to_fetch)} productos estén en BD...")
+            products_in_db = []
+            for asin in asins_to_fetch:
+                try:
+                    product = ensure_product_in_db(asin, request.user, keepa_service)
+                    if product:
+                        products_in_db.append(product)
+                except Exception as e:
+                    logger.warning(f"[BEST_SELLERS] Error asegurando producto {asin} en BD: {e}")
+                    continue
+            
+            logger.info(f"[BEST_SELLERS] {len(products_in_db)} productos asegurados en BD")
+            
+            # Consultar información básica de los productos para la respuesta del chat
+            # (aunque ya están en BD, necesitamos datos formateados para OpenAI)
             try:
                 products_raw = keepa_service.api.query(
                     asins_to_fetch,
@@ -1304,14 +1526,31 @@ def best_sellers_view(request):
                         messages.warning(request, f'No se encontraron best sellers para la categoría seleccionada. Verifica que el ID de categoría sea válido y que existan productos en esa categoría.')
                         logger.warning(f"No se encontraron best sellers para category_id: '{category_id}'")
                     else:
+                        # Asegurar que todos los productos estén en BD antes de mostrarlos
+                        # Esto permite que luego se puedan consultar con información completa
+                        asins_to_process = asins[:100]  # Limitar a 100 para no consumir demasiados tokens
+                        logger.info(f"[BEST_SELLERS_VIEW] Asegurando que {len(asins_to_process)} productos estén en BD...")
+                        
+                        products_ensured = 0
+                        for asin in asins_to_process:
+                            try:
+                                product = ensure_product_in_db(asin, request.user, keepa_service)
+                                if product:
+                                    products_ensured += 1
+                            except Exception as e:
+                                logger.warning(f"[BEST_SELLERS_VIEW] Error asegurando producto {asin} en BD: {e}")
+                                continue
+                        
+                        logger.info(f"[BEST_SELLERS_VIEW] {products_ensured} productos asegurados en BD de {len(asins_to_process)}")
+                        
                         # Consultar información básica de cada ASIN en batch
-                        # Usar query sin historial completo para ahorrar tokens
-                        logger.info(f"Consultando información de {len(asins)} best sellers")
+                        # Usar query sin historial completo para ahorrar tokens (ya están en BD con historial completo)
+                        logger.info(f"Consultando información de {len(asins_to_process)} best sellers para mostrar")
                         
                         # Consultar productos en batch con stats para obtener rating y review count
                         products_raw = keepa_service.api.query(
-                            asins[:100],  # Limitar a 100 para no consumir demasiados tokens
-                            history=False,  # Sin historial para ahorrar tokens
+                            asins_to_process,
+                            history=False,  # Sin historial para ahorrar tokens (ya están guardados en BD)
                             stats=90,  # Con estadísticas para obtener rating y review count
                             rating=True  # Con rating para obtener información completa
                         )
