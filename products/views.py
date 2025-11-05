@@ -1460,8 +1460,29 @@ def best_sellers_view(request):
     """
     try:
         category_id = request.GET.get('category_id', '').strip()
+        category_id_direct = request.GET.get('category_id_direct', '').strip()  # ID ingresado directamente
         category_search = request.GET.get('category_search', '').strip()  # Nombre de búsqueda para contexto
         page_number = request.GET.get('page', 1)
+        
+        # Si se ingresó un ID directamente, usarlo (tiene prioridad sobre category_id del hidden input)
+        if category_id_direct and category_id_direct.isdigit():
+            category_id = category_id_direct
+            logger.info(f"best_sellers_view - Usando ID de categoría ingresado directamente: '{category_id}'")
+            # Si no hay category_search, intentar obtener el nombre de la categoría
+            if not category_search:
+                try:
+                    keepa_service = KeepaService()
+                    # Intentar buscar el nombre de la categoría usando el ID
+                    test_categories = keepa_service.search_categories(category_id)
+                    if test_categories:
+                        for cat in test_categories:
+                            if cat['id'] == category_id:
+                                category_search = cat.get('name') or cat.get('contextFreeName', f"Categoría {category_id}")
+                                break
+                    if not category_search:
+                        category_search = f"Categoría {category_id}"
+                except:
+                    category_search = f"Categoría {category_id}"
         
         logger.info(f"best_sellers_view - category_id recibido: '{category_id}', category_search: '{category_search}'")
         

@@ -71,7 +71,7 @@
             <form method="get" action="{% url 'products:best_sellers' %}" class="max-w-2xl mx-auto">
                 <div class="mb-6">
                     <label for="category_search" class="block text-sm font-semibold text-white mb-2">
-                        Buscar Categoría
+                        Buscar Categoría por Nombre
                     </label>
                     <div class="search-category-input-container">
                         <input 
@@ -88,6 +88,29 @@
                     </div>
                     <p class="text-sm text-slate-400 mt-2">
                         Escribe el nombre de una categoría y selecciona de la lista de resultados
+                    </p>
+                </div>
+                
+                <div class="mb-6">
+                    <div class="flex items-center mb-2">
+                        <label for="category_id_direct" class="block text-sm font-semibold text-white">
+                            O Ingresar ID de Categoría Directamente
+                        </label>
+                        <span class="ml-2 text-xs text-slate-400">(opcional)</span>
+                    </div>
+                    <input 
+                        type="text" 
+                        id="category_id_direct" 
+                        name="category_id_direct" 
+                        placeholder="Ej: 17729528011" 
+                        autocomplete="off"
+                        class="form-input w-full"
+                        value="{{ category_id|default:'' }}"
+                        pattern="[0-9]+"
+                        title="Solo se permiten números"
+                    >
+                    <p class="text-sm text-slate-400 mt-2">
+                        Si conoces el ID de categoría de Amazon, puedes ingresarlo directamente aquí
                     </p>
                 </div>
                 
@@ -309,6 +332,11 @@
                 
                 categoryIdInput.value = id;
                 categorySearchInput.value = name;
+                // También actualizar el campo de ID directo si existe
+                const categoryIdDirectInput = document.getElementById('category_id_direct');
+                if (categoryIdDirectInput) {
+                    categoryIdDirectInput.value = id;
+                }
                 categoryResults.classList.add('hidden');
                 
                 console.log('Categoría seleccionada - ID:', id, 'Nombre:', name);
@@ -323,6 +351,18 @@
     {% elif category_id and category_name %}
         categorySearchInput.value = '{{ category_name|escapejs }}';
     {% endif %}
+    
+    // Sincronizar campos: si se ingresa un ID directamente, limpiar el campo de búsqueda si es necesario
+    const categoryIdDirectInput = document.getElementById('category_id_direct');
+    if (categoryIdDirectInput) {
+        categoryIdDirectInput.addEventListener('input', function() {
+            const value = this.value.trim();
+            // Si se ingresa un ID válido, limpiar el campo hidden category_id para evitar conflictos
+            if (value && value.match(/^\d+$/)) {
+                categoryIdInput.value = '';
+            }
+        });
+    }
     
     // Función para limpiar el historial de búsquedas
     const clearHistoryBtn = document.getElementById('clearHistoryBtn');
