@@ -63,7 +63,6 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [],
-        'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
@@ -73,6 +72,14 @@ TEMPLATES = [
             ],
             'builtins': [
                 'django_components.templatetags.component_tags',
+            ],
+            'loaders': [
+                # Default Django loader
+                'django.template.loaders.filesystem.Loader',
+                # Including this is the same as APP_DIRS=True
+                'django.template.loaders.app_directories.Loader',
+                # Components loader
+                'django_components.template_loader.Loader',
             ],
         },
     },
@@ -194,4 +201,14 @@ COMPONENTS = {
     "libraries": [
         "components.tags",
     ],
+    "cache": False,  # Desactivar cache de componentes
+    "reload_on_file_change": DEBUG,  # Recargar servidor cuando cambien archivos de componentes (solo en desarrollo)
 }
+
+STATICFILES_FINDERS = [
+    # Default finders
+    "django.contrib.staticfiles.finders.FileSystemFinder",
+    "django.contrib.staticfiles.finders.AppDirectoriesFinder",
+    # Django components
+    "django_components.finders.ComponentsFileSystemFinder",
+]
