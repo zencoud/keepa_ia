@@ -2,7 +2,7 @@ import openai
 import logging
 import re
 from django.conf import settings
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 import json
 
@@ -270,6 +270,12 @@ class OpenAIService:
             "Eres Keepa AI, un asistente experto en análisis de precios de Amazon. "
             "Tu trabajo es ayudar a los usuarios a tomar decisiones inteligentes de compra "
             "basándote en datos históricos de Keepa.\n\n"
+            "IMPORTANTE: Usa formato Markdown cuando presentes listas, tablas o información estructurada:\n"
+            "- Usa listas con viñetas (-) o numeradas (1.) cuando enumeres elementos\n"
+            "- Usa **negritas** para destacar información importante\n"
+            "- Usa tablas markdown cuando presentes datos comparativos\n"
+            "- Usa encabezados (##) para secciones cuando sea apropiado\n"
+            "- Mantén el formato markdown limpio y legible\n\n"
         )
         
         if not product_data:
@@ -430,6 +436,112 @@ class OpenAIService:
         )
         
         return base_prompt + product_context + instructions
+    
+    def detect_best_sellers_intent(self, user_message: str) -> Optional[Dict[str, Any]]:
+        """
+        Detecta si el usuario pregunta sobre best sellers de una categoría
+        
+        Args:
+            user_message: Mensaje del usuario
+            
+        Returns:
+            Dict con 'intent' ('best_sellers' o None), 'category_query' (término de categoría o None)
+            O None si no hay intención de best sellers
+        """
+        try:
+            prompt = f"""
+Analiza el siguiente mensaje del usuario y determina si pregunta sobre best sellers, más vendidos, o productos más populares de una categoría.
+
+Mensaje del usuario: "{user_message}"
+
+PATRONES DE DETECCIÓN (sinónimos en español):
+- "best sellers", "best seller", "bestsellers"
+- "más vendidos", "mas vendidos", "más vendido", "mas vendido"
+- "top ventas", "top venta"
+- "productos más vendidos", "productos mas vendidos"
+- "mejores ventas", "mejor venta"
+- "top productos", "top producto"
+- "ranking de ventas", "ranking ventas"
+- "productos más populares", "productos mas populares"
+- "más populares", "mas populares"
+- "top", "top ventas", "top venta"
+
+Si el usuario pregunta sobre best sellers, extrae también la categoría mencionada (ej: "laptops", "libros", "electrónica", "computadoras", etc.)
+
+Responde SOLO con un JSON válido en este formato:
+{{
+    "intent": "best_sellers" o null,
+    "category_query": "término de categoría extraído del mensaje o null",
+    "specific_request": "descripción breve de lo que pidió específicamente"
+}}
+
+Ejemplos:
+- "muéstrame best sellers de laptops" → {{"intent": "best_sellers", "category_query": "laptops", "specific_request": "best sellers de laptops"}}
+- "¿cuáles son los más vendidos de libros?" → {{"intent": "best_sellers", "category_query": "libros", "specific_request": "más vendidos de libros"}}
+- "top ventas de electrónica" → {{"intent": "best_sellers", "category_query": "electrónica", "specific_request": "top ventas de electrónica"}}
+- "productos más vendidos en computadoras" → {{"intent": "best_sellers", "category_query": "computadoras", "specific_request": "productos más vendidos en computadoras"}}
+- "¿cuál es el precio?" → {{"intent": null, "category_query": null, "specific_request": "pregunta sobre precio"}}
+- "¿cómo está el producto?" → {{"intent": null, "category_query": null, "specific_request": "pregunta general"}}
+- "best sellers" (sin categoría) → {{"intent": "best_sellers", "category_query": null, "specific_request": "best sellers"}}
+
+IMPORTANTE: 
+- Responde SOLO con el JSON, sin texto adicional.
+- Si detectas intención de best sellers pero no hay categoría clara, establece category_query como null.
+- Extrae la categoría mencionada en el mensaje, incluso si está en español.
+"""
+            
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",  # Modelo pequeño y rápido para detección
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Eres un clasificador de intenciones experto. Analiza mensajes y determina si el usuario "
+                            "pregunta sobre best sellers, más vendidos, o productos más populares de una categoría. "
+                            "Detecta sinónimos en español como: best sellers, más vendidos, top ventas, productos más vendidos, "
+                            "mejores ventas, top productos, ranking de ventas, productos más populares. "
+                            "Extrae también la categoría mencionada si existe. "
+                            "Responde siempre con JSON válido."
+                        )
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.2,  # Muy baja temperatura para detección consistente
+                max_tokens=200,
+                response_format={"type": "json_object"}
+            )
+            
+            result = json.loads(response.choices[0].message.content.strip())
+            
+            # Manejar casos donde OpenAI retorna "null" como string o el valor null real
+            intent_value = result.get('intent')
+            if intent_value == 'null' or intent_value is None or (isinstance(intent_value, str) and intent_value.lower() == 'null'):
+                logger.info(f"[BEST_SELLERS] No se detectó intención de best sellers: {result}")
+                return None
+            
+            # Si detecta intención de best sellers, retornar el resultado
+            if intent_value == 'best_sellers':
+                # Limpiar category_query si es null
+                category_query = result.get('category_query')
+                if category_query in [None, 'null', '']:
+                    category_query = None
+                else:
+                    category_query = str(category_query).strip()
+                
+                result['category_query'] = category_query
+                logger.info(f"[BEST_SELLERS] ✓ Intención de best sellers detectada: {result}")
+                return result
+            
+            logger.info(f"[BEST_SELLERS] No se detectó intención de best sellers: {result}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"[BEST_SELLERS] Error detectando intención de best sellers: {e}")
+            # En caso de error, retornar None
+            return None
     
     def detect_document_intent(self, user_message: str) -> Optional[Dict[str, str]]:
         """
@@ -1208,4 +1320,135 @@ Este es un análisis básico automático. Para un análisis más detallado, por 
             },
             "recommendation": "Consulta más información antes de realizar la compra."
         }
+    
+    def chat_with_best_sellers(
+        self,
+        user_message: str,
+        best_sellers_data: List[Dict[str, Any]],
+        category_name: str = None
+    ) -> str:
+        """
+        Genera respuesta del chat con información de best sellers
+        
+        Args:
+            user_message: Mensaje original del usuario
+            best_sellers_data: Lista de diccionarios con información de productos best sellers
+            category_name: Nombre de la categoría (opcional)
+            
+        Returns:
+            Respuesta formateada de la IA con información de best sellers
+        """
+        try:
+            # Construir contexto de best sellers
+            context = "INFORMACIÓN DE BEST SELLERS:\n"
+            context += "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            
+            if category_name:
+                context += f"📦 Categoría: {category_name}\n\n"
+            
+            context += f"📊 Total de productos encontrados: {len(best_sellers_data)}\n\n"
+            
+            # Agregar información de cada producto (limitado a top 20)
+            products_to_show = best_sellers_data[:20]
+            context += "PRODUCTOS BEST SELLERS:\n\n"
+            
+            for idx, product in enumerate(products_to_show, 1):
+                context += f"{idx}. {product.get('title', 'Sin título')[:80]}\n"
+                context += f"   ASIN: {product.get('asin', 'N/A')}\n"
+                
+                if product.get('brand'):
+                    context += f"   Marca: {product.get('brand')}\n"
+                
+                if product.get('current_price_new'):
+                    price = product['current_price_new'] / 100 if isinstance(product['current_price_new'], (int, float)) else product['current_price_new']
+                    context += f"   Precio: ${price:.2f}\n"
+                elif product.get('current_price_amazon'):
+                    price = product['current_price_amazon'] / 100 if isinstance(product['current_price_amazon'], (int, float)) else product['current_price_amazon']
+                    context += f"   Precio Amazon: ${price:.2f}\n"
+                
+                if product.get('rating'):
+                    context += f"   Rating: {product.get('rating')}⭐"
+                    if product.get('review_count'):
+                        context += f" ({product.get('review_count'):,} reseñas)"
+                    context += "\n"
+                
+                if product.get('sales_rank_current'):
+                    context += f"   Sales Rank: #{product.get('sales_rank_current'):,}\n"
+                
+                context += "\n"
+            
+            # Construir system prompt
+            system_prompt = (
+                "Eres Keepa AI, un asistente experto en análisis de productos de Amazon. "
+                "Tu trabajo es ayudar a los usuarios a encontrar y entender los best sellers de diferentes categorías. "
+                "Sé amigable, conversacional y proporciona información útil sobre los productos.\n\n"
+                "IMPORTANTE: Usa formato Markdown para presentar la información de forma clara y estructurada:\n"
+                "- Usa listas con viñetas (-) o numeradas (1.) para listar productos\n"
+                "- Usa **negritas** para destacar información importante\n"
+                "- Si hay muchos productos, crea una tabla con columnas: Producto, Precio, Rating, Sales Rank\n"
+                "- Usa encabezados (##) para secciones cuando sea apropiado\n"
+                "- Usa emojis sutilmente (1-2 máximo)\n"
+                "- Cuando listes productos, usa formato markdown con viñetas o una tabla\n"
+                "- Responde de forma clara y estructurada usando markdown\n"
+            )
+            
+            user_prompt = f"{context}\n\nSolicitud del usuario: \"{user_message}\"\n\n"
+            user_prompt += "Genera una respuesta amigable y útil sobre estos best sellers. "
+            user_prompt += "Si hay muchos productos, enfócate en los más destacados y menciona el total."
+            
+            # Llamar a OpenAI
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.7,
+                max_tokens=600,
+                top_p=0.9,
+            )
+            
+            answer = response.choices[0].message.content.strip()
+            logger.info("Respuesta de best sellers generada exitosamente")
+            
+            return answer
+            
+        except Exception as e:
+            logger.error(f"Error generando respuesta de best sellers: {e}")
+            # Fallback: respuesta básica
+            return self._build_fallback_best_sellers_response(best_sellers_data, category_name)
+    
+    def _build_fallback_best_sellers_response(
+        self,
+        best_sellers_data: List[Dict[str, Any]],
+        category_name: str = None
+    ) -> str:
+        """
+        Genera una respuesta básica de fallback si OpenAI falla
+        
+        Args:
+            best_sellers_data: Lista de productos best sellers
+            category_name: Nombre de la categoría
+            
+        Returns:
+            Respuesta básica formateada
+        """
+        response = "📊 Best Sellers"
+        if category_name:
+            response += f" de {category_name}"
+        response += f"\n\nEncontré {len(best_sellers_data)} productos:\n\n"
+        
+        for idx, product in enumerate(best_sellers_data[:10], 1):
+            response += f"{idx}. {product.get('title', 'Sin título')[:60]}\n"
+            if product.get('current_price_new'):
+                price = product['current_price_new'] / 100 if isinstance(product['current_price_new'], (int, float)) else product['current_price_new']
+                response += f"   Precio: ${price:.2f}\n"
+            if product.get('rating'):
+                response += f"   Rating: {product.get('rating')}⭐\n"
+            response += "\n"
+        
+        if len(best_sellers_data) > 10:
+            response += f"\n... y {len(best_sellers_data) - 10} productos más.\n"
+        
+        return response
 

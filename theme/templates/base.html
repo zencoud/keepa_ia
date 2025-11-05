@@ -13,6 +13,9 @@
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
+    <!-- Marked.js para renderizar Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    
     {% block extra_css %}{% endblock %}
 </head>
 <body class="antialiased bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 min-h-screen text-white" style="background-attachment: fixed;">
@@ -150,6 +153,79 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 20px 20px 20px 5px;
         }
+        
+        /* Estilos para markdown en mensajes de IA */
+        .ai-message .prose {
+            color: white;
+        }
+        
+        .ai-message .prose ul,
+        .ai-message .prose ol {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+        
+        .ai-message .prose li {
+            margin: 0.25rem 0;
+        }
+        
+        .ai-message .prose table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        
+        .ai-message .prose th,
+        .ai-message .prose td {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 0.5rem;
+            text-align: left;
+        }
+        
+        .ai-message .prose th {
+            background: rgba(255, 255, 255, 0.1);
+            font-weight: 600;
+        }
+        
+        .ai-message .prose code {
+            background: rgba(139, 92, 246, 0.2);
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.25rem;
+            font-size: 0.875em;
+        }
+        
+        .ai-message .prose pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+        }
+        
+        .ai-message .prose pre code {
+            background: transparent;
+            padding: 0;
+        }
+        
+        .ai-message .prose a {
+            color: #a78bfa;
+            text-decoration: underline;
+        }
+        
+        .ai-message .prose a:hover {
+            color: #c4b5fd;
+        }
+        
+        .ai-message .prose strong {
+            font-weight: 600;
+        }
+        
+        .ai-message .prose h1,
+        .ai-message .prose h2,
+        .ai-message .prose h3 {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
     </style>
     
     <!-- JavaScript del Chat -->
@@ -240,7 +316,7 @@
                         </svg>
                     </div>
                     <div class="flex-1 ai-message p-4">
-                        <p id="${messageId}" class="text-white text-sm leading-relaxed"></p>
+                        <div id="${messageId}" class="text-white text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-headings:text-white prose-p:text-white prose-strong:text-white prose-ul:text-white prose-ol:text-white prose-li:text-white prose-code:text-purple-300 prose-pre:bg-white/10 prose-pre:text-white prose-a:text-purple-300 prose-a:hover:text-purple-200 prose-table:text-white prose-th:text-white prose-td:text-white"></div>
                         <span id="${messageId}-cursor" class="inline-block w-0.5 h-4 bg-purple-400 animate-pulse ml-1" style="display: ${withTyping ? 'inline-block' : 'none'};"></span>
                     </div>
                 `;
@@ -251,13 +327,43 @@
                 if (withTyping) {
                     typeText(content, messageId);
                 } else {
-                    // Si no, mostrar inmediatamente
-                    document.getElementById(messageId).textContent = content;
+                    // Si no, mostrar inmediatamente renderizando markdown
+                    renderMarkdown(content, messageId);
                 }
             }
         }
         
-        // Efecto de typing animado
+        // Renderizar markdown
+        function renderMarkdown(text, elementId) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            try {
+                // Configurar marked para renderizar markdown de forma segura
+                if (typeof marked !== 'undefined') {
+                    // Configurar opciones de marked
+                    marked.setOptions({
+                        breaks: true,  // Convertir saltos de línea a <br>
+                        gfm: true,     // GitHub Flavored Markdown
+                        headerIds: false,
+                        mangle: false
+                    });
+                    
+                    // Renderizar markdown
+                    const html = marked.parse(text);
+                    element.innerHTML = html;
+                } else {
+                    // Fallback si marked no está disponible
+                    element.textContent = text;
+                }
+            } catch (error) {
+                console.error('Error renderizando markdown:', error);
+                // Fallback a texto plano
+                element.textContent = text;
+            }
+        }
+        
+        // Efecto de typing animado con markdown
         function typeText(text, elementId) {
             const element = document.getElementById(elementId);
             const cursor = document.getElementById(elementId + '-cursor');
@@ -265,11 +371,35 @@
             
             let currentIndex = 0;
             const typingSpeed = 15; // milisegundos por carácter
+            let accumulatedText = '';
             
             function typeNextCharacter() {
                 if (currentIndex < text.length) {
-                    element.textContent += text[currentIndex];
+                    accumulatedText += text[currentIndex];
                     currentIndex++;
+                    
+                    // Renderizar markdown incrementalmente
+                    try {
+                        if (typeof marked !== 'undefined') {
+                            marked.setOptions({
+                                breaks: true,
+                                gfm: true,
+                                headerIds: false,
+                                mangle: false
+                            });
+                            const html = marked.parse(accumulatedText);
+                            element.innerHTML = html;
+                            // Mantener el cursor visible
+                            if (cursor) {
+                                cursor.style.display = 'inline-block';
+                            }
+                        } else {
+                            element.textContent = accumulatedText;
+                        }
+                    } catch (error) {
+                        element.textContent = accumulatedText;
+                    }
+                    
                     scrollToBottom(); // Auto-scroll mientras escribe
                     setTimeout(typeNextCharacter, typingSpeed);
                 } else {

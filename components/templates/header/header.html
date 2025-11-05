@@ -34,25 +34,6 @@
                     </svg>
                     <span>Best Sellers</span>
                 </a>
-                <a href="{% url 'products:alerts_list' %}" class="flex items-center space-x-2 px-4 py-2 text-white hover:text-keepa-blue-300 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-[40px] transition-all duration-200 font-medium border border-white/20 hover:border-white/40 hover:shadow-md">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    <span>Alertas</span>
-                </a>
-                <div class="relative ml-1">
-                    <a href="{% url 'products:notifications' %}" class="flex items-center space-x-2 px-4 py-2 text-white hover:text-keepa-blue-300 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-[40px] transition-all duration-200 font-medium border border-white/20 hover:border-white/40 hover:shadow-md relative">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                        </svg>
-                        <span>Notificaciones</span>
-                        {% if unread_notifications_count > 0 %}
-                            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-red-600 to-red-700 rounded-[40px] shadow-lg ring-2 ring-white">
-                                {{ unread_notifications_count }}
-                            </span>
-                        {% endif %}
-                    </a>
-                </div>
             </nav>
 
             <!-- User Info and Actions -->

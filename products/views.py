@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from datetime import timedelta, datetime
 from io import StringIO
+from typing import Dict, Any
 import json
 from .models import Product, PriceAlert, Notification, BestSellerSearch
 from .keepa_service import KeepaService
@@ -645,6 +646,7 @@ def detect_document_intent_view(request):
 def ai_chat_view(request):
     """
     Vista AJAX para chat con IA usando datos completos de Keepa
+    Maneja tanto preguntas sobre productos como sobre best sellers
     """
     try:
         # Parsear datos del request
@@ -659,6 +661,23 @@ def ai_chat_view(request):
                 'error': 'El mensaje no puede estar vacío'
             }, status=400)
         
+        # PRIMERO: Detectar si es una solicitud de best sellers
+        try:
+            openai_service = OpenAIService()
+            best_sellers_intent = openai_service.detect_best_sellers_intent(user_message)
+            
+            if best_sellers_intent and best_sellers_intent.get('intent') == 'best_sellers':
+                logger.info(f"[BEST_SELLERS] Intención detectada: {best_sellers_intent}")
+                return handle_best_sellers_request(request, user_message, best_sellers_intent)
+            
+        except ValueError as e:
+            logger.warning(f"OpenAI no configurado para detección de intención: {e}")
+            # Continuar con chat normal si OpenAI no está configurado
+        except Exception as e:
+            logger.warning(f"Error detectando intención de best sellers: {e}")
+            # Continuar con chat normal si hay error en la detección
+        
+        # Si no es solicitud de best sellers, continuar con el chat normal
         # Preparar datos del producto si hay ASIN
         product_data = None
         if asin:
@@ -689,7 +708,9 @@ def ai_chat_view(request):
         
         # Generar respuesta con OpenAI
         try:
-            openai_service = OpenAIService()
+            if 'openai_service' not in locals():
+                openai_service = OpenAIService()
+            
             response_text = openai_service.chat_with_product(
                 user_message=user_message,
                 conversation_history=conversation_history,
@@ -729,6 +750,182 @@ def ai_chat_view(request):
         return JsonResponse({
             'success': False,
             'error': 'Error procesando la solicitud'
+        }, status=500)
+
+
+def handle_best_sellers_request(request, user_message: str, intent_data: Dict[str, Any]) -> JsonResponse:
+    """
+    Maneja solicitudes de best sellers desde el chat
+    
+    Args:
+        request: HttpRequest
+        user_message: Mensaje original del usuario
+        intent_data: Dict con información de la intención detectada
+        
+    Returns:
+        JsonResponse con la respuesta de best sellers
+    """
+    try:
+        category_query = intent_data.get('category_query')
+        
+        # Si no hay categoría, pedir al usuario que especifique
+        if not category_query:
+            return JsonResponse({
+                'success': True,
+                'response': 'Para mostrarte los best sellers, necesito que especifiques una categoría. Por ejemplo: "muéstrame best sellers de laptops" o "más vendidos de libros". ¿De qué categoría te gustaría ver los best sellers?',
+                'timestamp': timezone.now().isoformat()
+            })
+        
+        # Buscar categorías usando KeepaService
+        try:
+            keepa_service = KeepaService()
+            categories = keepa_service.search_categories(category_query)
+            
+            if not categories or len(categories) == 0:
+                return JsonResponse({
+                    'success': True,
+                    'response': f'No encontré categorías que coincidan con "{category_query}". Por favor, intenta con otro término de búsqueda o verifica la ortografía.',
+                    'timestamp': timezone.now().isoformat()
+                })
+            
+            # Usar la primera categoría encontrada (la más relevante)
+            selected_category = categories[0]
+            category_id = selected_category.get('id')
+            category_name = selected_category.get('name') or selected_category.get('contextFreeName', category_query)
+            
+            logger.info(f"[BEST_SELLERS] Categoría seleccionada: {category_name} (ID: {category_id})")
+            
+            # Obtener best sellers
+            asins = keepa_service.get_best_sellers(category_id)
+            
+            if not asins or len(asins) == 0:
+                return JsonResponse({
+                    'success': True,
+                    'response': f'No encontré best sellers para la categoría "{category_name}". Intenta con otra categoría.',
+                    'timestamp': timezone.now().isoformat()
+                })
+            
+            # Limitar a top 20 para evitar respuestas muy largas
+            asins_to_fetch = asins[:20]
+            
+            # Consultar información básica de los productos
+            try:
+                products_raw = keepa_service.api.query(
+                    asins_to_fetch,
+                    history=False,
+                    stats=90,  # Necesitamos stats para rating y review_count
+                    rating=True
+                )
+            except Exception as e:
+                logger.error(f"Error consultando productos best sellers: {e}")
+                return JsonResponse({
+                    'success': True,
+                    'response': f'Encontré {len(asins)} best sellers para "{category_name}", pero hubo un problema obteniendo los detalles. Por favor, intenta de nuevo.',
+                    'timestamp': timezone.now().isoformat()
+                })
+            
+            # Parsear información básica de productos
+            best_sellers_data = []
+            for product_raw in products_raw:
+                try:
+                    # Extraer datos básicos
+                    product_basic = {
+                        'asin': product_raw.get('asin', ''),
+                        'title': product_raw.get('title', ''),
+                        'brand': product_raw.get('brand', ''),
+                        'image_url': keepa_service._extract_image_url(product_raw),
+                        'rating': None,
+                        'review_count': None,
+                        'sales_rank_current': None,
+                        'current_price_new': None,
+                        'current_price_amazon': None,
+                    }
+                    
+                    # Extraer datos desde stats
+                    stats = product_raw.get('stats', {})
+                    if stats:
+                        current = stats.get('current', [])
+                        if current and len(current) > 0:
+                            # Rating (índice 16)
+                            if len(current) > 16:
+                                rating = current[16]
+                                if rating is not None and rating > 0:
+                                    product_basic['rating'] = round(rating / 10.0, 1)
+                            # Review count (índice 17)
+                            if len(current) > 17:
+                                review_count = current[17]
+                                if review_count is not None and review_count >= 0:
+                                    product_basic['review_count'] = int(review_count)
+                            # Sales rank (índice 3)
+                            if len(current) > 3:
+                                sales_rank = current[3]
+                                if sales_rank is not None and sales_rank > 0:
+                                    product_basic['sales_rank_current'] = int(sales_rank)
+                    
+                    # Extraer precios
+                    data = product_raw.get('data', {})
+                    if data:
+                        product_basic['current_price_new'] = keepa_service._get_latest_price(data.get('NEW', []))
+                        product_basic['current_price_amazon'] = keepa_service._get_latest_price(data.get('AMAZON', []))
+                    
+                    if product_basic['asin'] and product_basic['title']:
+                        best_sellers_data.append(product_basic)
+                        
+                except Exception as e:
+                    logger.warning(f"Error parseando producto best seller: {e}")
+                    continue
+            
+            if not best_sellers_data:
+                return JsonResponse({
+                    'success': True,
+                    'response': f'Encontré best sellers para "{category_name}", pero no pude obtener los detalles de los productos. Por favor, intenta de nuevo.',
+                    'timestamp': timezone.now().isoformat()
+                })
+            
+            # Generar respuesta usando OpenAI
+            try:
+                openai_service = OpenAIService()
+                response_text = openai_service.chat_with_best_sellers(
+                    user_message=user_message,
+                    best_sellers_data=best_sellers_data,
+                    category_name=category_name
+                )
+                
+                logger.info(f"[BEST_SELLERS] Respuesta generada exitosamente para categoría: {category_name}")
+                
+                return JsonResponse({
+                    'success': True,
+                    'response': response_text,
+                    'timestamp': timezone.now().isoformat()
+                })
+                
+            except Exception as e:
+                logger.error(f"Error generando respuesta de best sellers con OpenAI: {e}")
+                # Fallback: respuesta básica
+                openai_service = OpenAIService()
+                response_text = openai_service._build_fallback_best_sellers_response(
+                    best_sellers_data,
+                    category_name
+                )
+                return JsonResponse({
+                    'success': True,
+                    'response': response_text,
+                    'timestamp': timezone.now().isoformat()
+                })
+            
+        except Exception as e:
+            logger.error(f"Error manejando solicitud de best sellers: {e}")
+            return JsonResponse({
+                'success': True,
+                'response': 'Hubo un problema buscando los best sellers. Por favor, intenta de nuevo o verifica que la categoría sea correcta.',
+                'timestamp': timezone.now().isoformat()
+            })
+            
+    except Exception as e:
+        logger.error(f"Error en handle_best_sellers_request: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error procesando la solicitud de best sellers'
         }, status=500)
 
 
@@ -1100,6 +1297,8 @@ def best_sellers_view(request):
                     asins = keepa_service.get_best_sellers(category_id)
                     
                     logger.info(f"Best sellers obtenidos: {len(asins) if asins else 0} ASINs")
+                    if asins:
+                        logger.info(f"Primeros 5 ASINs obtenidos: {asins[:5]}")
                     
                     if not asins:
                         messages.warning(request, f'No se encontraron best sellers para la categoría seleccionada. Verifica que el ID de categoría sea válido y que existan productos en esa categoría.')
@@ -1109,22 +1308,28 @@ def best_sellers_view(request):
                         # Usar query sin historial completo para ahorrar tokens
                         logger.info(f"Consultando información de {len(asins)} best sellers")
                         
-                        # Consultar productos en batch (máximo eficiencia de tokens)
+                        # Consultar productos en batch con stats para obtener rating y review count
                         products_raw = keepa_service.api.query(
                             asins[:100],  # Limitar a 100 para no consumir demasiados tokens
                             history=False,  # Sin historial para ahorrar tokens
-                            stats=0,  # Sin estadísticas
-                            rating=False  # Sin rating history
+                            stats=90,  # Con estadísticas para obtener rating y review count
+                            rating=True  # Con rating para obtener información completa
                         )
+                        
+                        logger.info(f"Productos raw obtenidos de Keepa: {len(products_raw) if products_raw else 0}")
+                        
+                        # Contador de tipos de productos para debugging
+                        binding_counts = {}
                         
                         # Parsear información básica de cada producto
                         for product_raw in products_raw:
                             try:
-                                # Extraer solo información básica
+                                # Extraer información básica incluyendo binding para verificar tipo
                                 product_basic = {
                                     'asin': product_raw.get('asin', ''),
                                     'title': product_raw.get('title', ''),
                                     'brand': product_raw.get('brand', ''),
+                                    'binding': product_raw.get('binding', ''),  # Tipo de producto (Books, Electronics, etc.)
                                     'image_url': keepa_service._extract_image_url(product_raw),
                                     'rating': None,
                                     'review_count': None,
@@ -1134,24 +1339,34 @@ def best_sellers_view(request):
                                     'current_price_used': None,
                                 }
                                 
+                                # Log para debugging - ver qué tipo de productos está obteniendo
+                                binding = product_basic.get('binding', 'Unknown')
+                                if binding:
+                                    binding_counts[binding] = binding_counts.get(binding, 0) + 1
+                                    logger.debug(f"Producto ASIN {product_basic['asin']}: binding={binding}, title={product_basic['title'][:50]}")
+                                
                                 # Extraer rating y review count desde stats si están disponibles
                                 stats = product_raw.get('stats', {})
                                 if stats:
-                                    current = stats.get('current', {})
-                                    if current and len(current) > 16:
-                                        rating = current[16]
-                                        if rating is not None and rating > 0:
-                                            product_basic['rating'] = round(rating / 10.0, 1)
-                                    
-                                    if current and len(current) > 17:
-                                        review_count = current[17]
-                                        if review_count is not None and review_count >= 0:
-                                            product_basic['review_count'] = int(review_count)
-                                    
-                                    if current and len(current) > 3:
-                                        sales_rank = current[3]
-                                        if sales_rank is not None and sales_rank > 0:
-                                            product_basic['sales_rank_current'] = int(sales_rank)
+                                    current = stats.get('current', [])
+                                    if current and len(current) > 0:
+                                        # Rating (índice 16)
+                                        if len(current) > 16:
+                                            rating = current[16]
+                                            if rating is not None and rating > 0:
+                                                product_basic['rating'] = round(rating / 10.0, 1)
+                                        
+                                        # Review count (índice 17)
+                                        if len(current) > 17:
+                                            review_count = current[17]
+                                            if review_count is not None and review_count >= 0:
+                                                product_basic['review_count'] = int(review_count)
+                                        
+                                        # Sales rank (índice 3)
+                                        if len(current) > 3:
+                                            sales_rank = current[3]
+                                            if sales_rank is not None and sales_rank > 0:
+                                                product_basic['sales_rank_current'] = int(sales_rank)
                                 
                                 # Extraer precios actuales si están disponibles
                                 data = product_raw.get('data', {})
@@ -1175,6 +1390,11 @@ def best_sellers_view(request):
                             except Exception as e:
                                 logger.warning(f"Error parseando producto best seller: {e}")
                                 continue
+                        
+                        # Log de resumen de tipos de productos
+                        if binding_counts:
+                            logger.info(f"Resumen de tipos de productos obtenidos: {binding_counts}")
+                            logger.info(f"Total de productos parseados: {len(products_data)}")
                         
                         # Obtener nombre de la categoría usando una búsqueda específica
                         # Intentar obtener info de la categoría consultando directamente

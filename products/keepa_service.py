@@ -661,55 +661,110 @@ class KeepaService:
             logger.error(f"Error obteniendo ofertas para {asin}: {e}")
             return []
     
-    def search_categories(self, query: str) -> List[Dict[str, Any]]:
+    def search_categories(self, query: str, domain: str = 'MX') -> List[Dict[str, Any]]:
         """
         Busca categorías por nombre
         
         Args:
             query: Nombre o término de búsqueda de la categoría
+            domain: Dominio de Amazon ('MX', 'US', 'UK', etc.). Default: 'MX' (México)
             
         Returns:
             Lista de diccionarios con información de categorías encontradas
             Cada diccionario contiene: id, name, contextFreeName, domainId
+            Ordenadas por relevancia (categorías de México primero)
         """
         try:
-            logger.info(f"Buscando categorías con query: {query}")
+            logger.info(f"Buscando categorías con query: {query} (domain: {domain})")
             
             if not query or not query.strip():
                 logger.warning("Query de búsqueda de categoría vacío")
                 return []
             
-            # Buscar categorías usando la API de Keepa
-            categories = self.api.search_for_categories(query.strip())
+            # Buscar categorías usando la API de Keepa con dominio de México
+            categories = self.api.search_for_categories(query.strip(), domain=domain)
             
             if not categories:
-                logger.info(f"No se encontraron categorías para: {query}")
+                logger.info(f"No se encontraron categorías para: {query} en dominio {domain}")
                 return []
             
             # Convertir el diccionario de categorías a lista de diccionarios
             category_list = []
-            for category_id, category_data in categories.items():
-                category_list.append({
-                    'id': str(category_id),
-                    'name': category_data.get('name', ''),
-                    'contextFreeName': category_data.get('contextFreeName', ''),
-                    'domainId': category_data.get('domainId', 1),
-                })
+            query_lower = query.lower().strip()
+            is_book_search = any(term in query_lower for term in ['book', 'libro', 'ebook', 'e-book', 'kindle'])
             
-            logger.info(f"Encontradas {len(category_list)} categorías para: {query}")
+            # Mapeo de domainId: 11 = MX (México)
+            mx_domain_id = 11
+            
+            for category_id, category_data in categories.items():
+                name = category_data.get('name', '')
+                context_free_name = category_data.get('contextFreeName', '')
+                domain_id = category_data.get('domainId', 1)
+                binding = category_data.get('binding', '').lower() if category_data.get('binding') else ''
+                
+                category_info = {
+                    'id': str(category_id),
+                    'name': name,
+                    'contextFreeName': context_free_name,
+                    'domainId': domain_id,
+                    'binding': category_data.get('binding', ''),
+                }
+                
+                # Calcular score de relevancia
+                score = 0
+                name_lower = name.lower()
+                context_lower = context_free_name.lower() if context_free_name else ''
+                
+                # Priorizar coincidencias exactas en el nombre
+                if query_lower == name_lower:
+                    score += 1000
+                elif query_lower in name_lower:
+                    score += 500
+                elif any(word in name_lower for word in query_lower.split()):
+                    score += 200
+                
+                # Priorizar coincidencias en contextFreeName
+                if context_free_name and query_lower in context_lower:
+                    score += 300
+                
+                # Priorizar categorías de México (domainId=11)
+                if domain_id == mx_domain_id:
+                    score += 100
+                else:
+                    # Penalizar categorías de otros dominios
+                    score -= 200
+                
+                # Penalizar categorías de Books si no se buscan libros
+                if not is_book_search and binding == 'books':
+                    score -= 500
+                    logger.debug(f"Penalizando categoría Books: {name} (ID: {category_id})")
+                
+                category_info['relevance_score'] = score
+                category_list.append(category_info)
+            
+            # Ordenar por score de relevancia (mayor primero)
+            category_list.sort(key=lambda x: x['relevance_score'], reverse=True)
+            
+            # Log para debugging
+            logger.info(f"Encontradas {len(category_list)} categorías para: {query} (domain: {domain})")
+            if category_list:
+                top_5 = category_list[:5]
+                top_5_info = [(c['name'], c['id'], c['relevance_score'], f"domainId={c['domainId']}") for c in top_5]
+                logger.info(f"Top 5 categorías: {top_5_info}")
+            
             return category_list
             
         except Exception as e:
             logger.error(f"Error buscando categorías para '{query}': {e}")
             return []
     
-    def get_best_sellers(self, category_id: str, domain: str = 'US') -> List[str]:
+    def get_best_sellers(self, category_id: str, domain: str = 'MX') -> List[str]:
         """
         Obtiene los ASINs de los productos best sellers de una categoría
         
         Args:
             category_id: ID de la categoría de Amazon (como string, ej: "541966")
-            domain: Dominio de Amazon ('US', 'UK', 'DE', etc.). Default: 'US'
+            domain: Dominio de Amazon ('MX', 'US', 'UK', etc.). Default: 'MX' (México)
             
         Returns:
             Lista de ASINs ordenados por popularidad
@@ -729,7 +784,7 @@ class KeepaService:
                 return []
             
             # Consultar best sellers usando la API de Keepa
-            # El método espera domain como string ('US', 'UK', etc.) no como int
+            # El método espera domain como string ('MX', 'US', 'UK', etc.) no como int
             logger.debug(f"Llamando a api.best_sellers_query con category='{category_id_clean}', domain='{domain}'")
             best_sellers = self.api.best_sellers_query(category_id_clean, domain=domain)
             
@@ -769,6 +824,6 @@ class KeepaService:
             elif "REQUEST_REJECTED" in error_msg:
                 logger.error("La solicitud fue rechazada por Keepa API. Verifica tu token y suscripción.")
             elif "domain" in error_msg.lower():
-                logger.error(f"Error con el dominio '{domain}'. Verifica que sea válido (ej: 'US', 'UK', 'DE')")
+                logger.error(f"Error con el dominio '{domain}'. Verifica que sea válido (ej: 'MX', 'US', 'UK', 'DE')")
             
             return []
