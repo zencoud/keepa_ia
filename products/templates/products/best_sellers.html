@@ -144,22 +144,41 @@
                             </p>
                         </div>
                         
-                        <!-- Selector de perpage -->
-                        <div class="flex items-center gap-2">
-                            <label for="perpage" class="text-sm text-slate-300">Productos por página:</label>
-                            <select id="perpage" name="perpage" 
-                                    onchange="changePerPage(this.value)"
-                                    class="form-input bg-white/10 border-white/20 text-white px-3 py-2 rounded-[40px] focus:ring-2 focus:ring-keepa-blue-500 focus:border-keepa-blue-500">
-                                <option value="20" {% if perpage == 20 %}selected{% endif %}>20</option>
-                                <option value="50" {% if perpage == 50 %}selected{% endif %}>50</option>
-                                <option value="100" {% if perpage == 100 %}selected{% endif %}>100</option>
-                            </select>
+                        <!-- View Toggle and Perpage Selector -->
+                        <div class="flex items-center gap-4 flex-wrap">
+                            <!-- View Toggle -->
+                            <div class="flex items-center gap-2 bg-white/10 rounded-[40px] p-1">
+                                <button id="viewCardBtn" class="view-toggle-btn px-4 py-2 rounded-[40px] text-sm font-medium transition-all" data-view="card">
+                                    <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                                    </svg>
+                                    Cards
+                                </button>
+                                <button id="viewTableBtn" class="view-toggle-btn px-4 py-2 rounded-[40px] text-sm font-medium transition-all" data-view="table">
+                                    <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                    Table
+                                </button>
+                            </div>
+                            
+                            <!-- Perpage Selector -->
+                            <div class="flex items-center gap-2">
+                                <label for="perpage" class="text-sm text-slate-300">Productos por página:</label>
+                                <select id="perpage" name="perpage" 
+                                        onchange="changePerPage(this.value)"
+                                        class="form-input bg-white/10 border-white/20 text-white px-3 py-2 rounded-[40px] focus:ring-2 focus:ring-keepa-blue-500 focus:border-keepa-blue-500">
+                                    <option value="20" {% if perpage == 20 %}selected{% endif %}>20</option>
+                                    <option value="50" {% if perpage == 50 %}selected{% endif %}>50</option>
+                                    <option value="100" {% if perpage == 100 %}selected{% endif %}>100</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Products Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Products Grid (Card View) -->
+                <div id="cardView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     {% for product in products %}
                         <div class="glass-card glass-card-hover p-6 hover:scale-105 transition-transform duration-200">
                             <!-- Product Image -->
@@ -189,15 +208,27 @@
                                     </p>
                                 {% endif %}
                                 
-                                {% if product.current_price_new %}
-                                    <p class="text-lg font-bold text-keepa-blue-400">
-                                        Precio: ${{ product.current_price_new|default:"N/A" }}
-                                    </p>
-                                {% elif product.current_price_amazon %}
-                                    <p class="text-lg font-bold text-keepa-blue-400">
-                                        Precio Amazon: ${{ product.current_price_amazon|default:"N/A" }}
-                                    </p>
-                                {% endif %}
+                                <!-- Precios -->
+                                <div class="space-y-1">
+                                    {% if product.current_price_new %}
+                                        <p class="text-base font-bold text-keepa-blue-400">
+                                            Nuevo: ${{ product.current_price_new|floatformat:2|intcomma }}
+                                        </p>
+                                    {% endif %}
+                                    {% if product.current_price_amazon %}
+                                        <p class="text-base font-semibold text-keepa-green-400">
+                                            Amazon: ${{ product.current_price_amazon|floatformat:2|intcomma }}
+                                        </p>
+                                    {% endif %}
+                                    {% if product.current_price_used %}
+                                        <p class="text-base font-semibold text-slate-400">
+                                            Usado: ${{ product.current_price_used|floatformat:2|intcomma }}
+                                        </p>
+                                    {% endif %}
+                                    {% if not product.current_price_new and not product.current_price_amazon and not product.current_price_used %}
+                                        <p class="text-sm text-slate-500">Precio no disponible</p>
+                                    {% endif %}
+                                </div>
                                 
                                 {% if product.sales_rank_current %}
                                     <p class="text-sm text-slate-400">
@@ -207,6 +238,7 @@
                             </div>
                             
                             <!-- Action Buttons -->
+                            {% if product.asin and product.asin|length == 10 %}
                             <div class="flex gap-2">
                                 <a href="{% url 'products:detail' asin=product.asin %}" 
                                    onclick="fetchProductAndRedirect(event, '{{ product.asin }}'); return false;"
@@ -218,8 +250,118 @@
                             <p class="text-xs text-slate-500 mt-2 text-center">
                                 ASIN: {{ product.asin }}
                             </p>
+                            {% else %}
+                            <div class="flex gap-2">
+                                <span class="btn-secondary flex-1 text-center py-2 text-sm cursor-not-allowed opacity-50">
+                                    ASIN Inválido
+                                </span>
+                            </div>
+                            {% endif %}
                         </div>
                     {% endfor %}
+                </div>
+                
+                <!-- Products Table (Table View) -->
+                <div id="tableView" class="hidden mb-8">
+                    <div class="glass-card overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b border-white/20">
+                                    <th class="text-left py-4 px-6 text-sm font-semibold text-white">Imagen</th>
+                                    <th class="text-left py-4 px-6 text-sm font-semibold text-white">Título</th>
+                                    <th class="text-left py-4 px-6 text-sm font-semibold text-white">Marca</th>
+                                    <th class="text-center py-4 px-6 text-sm font-semibold text-white">Rating</th>
+                                    <th class="text-center py-4 px-6 text-sm font-semibold text-white">Precio Nuevo</th>
+                                    <th class="text-center py-4 px-6 text-sm font-semibold text-white">Precio Amazon</th>
+                                    <th class="text-center py-4 px-6 text-sm font-semibold text-white">Precio Usado</th>
+                                    <th class="text-center py-4 px-6 text-sm font-semibold text-white">Sales Rank</th>
+                                    <th class="text-center py-4 px-6 text-sm font-semibold text-white">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                    <tr class="border-b border-white/10 hover:bg-white/5 transition-colors">
+                                        <td class="py-4 px-6">
+                                            {% if product.image_url %}
+                                                <img src="{{ product.image_url }}" alt="{{ product.title }}" 
+                                                     class="w-16 h-16 object-contain rounded-lg bg-white/5">
+                                            {% else %}
+                                                <div class="w-16 h-16 bg-white/5 rounded-lg flex items-center justify-center">
+                                                    <svg class="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-4 px-6">
+                                            <div class="max-w-xs">
+                                                <div class="font-semibold text-white line-clamp-2">{{ product.title }}</div>
+                                                <div class="text-xs text-slate-500 mt-1 font-mono">ASIN: {{ product.asin }}</div>
+                                            </div>
+                                        </td>
+                                        <td class="py-4 px-6">
+                                            {% if product.brand %}
+                                                <span class="text-white">{{ product.brand }}</span>
+                                            {% else %}
+                                                <span class="text-slate-500">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-4 px-6 text-center">
+                                            {% if product.rating %}
+                                                <div class="flex flex-col items-center">
+                                                    <span class="text-keepa-green-400 font-bold">{{ product.rating }} ⭐</span>
+                                                    {% if product.review_count %}
+                                                        <span class="text-xs text-slate-500">({{ product.review_count }})</span>
+                                                    {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-slate-500">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-4 px-6 text-center">
+                                            {% if product.current_price_new %}
+                                                <span class="text-base font-bold text-keepa-blue-400">${{ product.current_price_new|floatformat:2|intcomma }}</span>
+                                            {% else %}
+                                                <span class="text-slate-500 text-sm">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-4 px-6 text-center">
+                                            {% if product.current_price_amazon %}
+                                                <span class="text-base font-semibold text-keepa-green-400">${{ product.current_price_amazon|floatformat:2|intcomma }}</span>
+                                            {% else %}
+                                                <span class="text-slate-500 text-sm">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-4 px-6 text-center">
+                                            {% if product.current_price_used %}
+                                                <span class="text-base font-semibold text-slate-400">${{ product.current_price_used|floatformat:2|intcomma }}</span>
+                                            {% else %}
+                                                <span class="text-slate-500 text-sm">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-4 px-6 text-center">
+                                            {% if product.sales_rank_current %}
+                                                <span class="text-white">#{{ product.sales_rank_current|intcomma }}</span>
+                                            {% else %}
+                                                <span class="text-slate-500">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-4 px-6">
+                                            {% if product.asin and product.asin|length == 10 %}
+                                                <a href="{% url 'products:detail' asin=product.asin %}" 
+                                                   onclick="fetchProductAndRedirect(event, '{{ product.asin }}'); return false;"
+                                                   class="btn-primary text-xs px-3 py-1.5 whitespace-nowrap">
+                                                    Ver Detalles
+                                                </a>
+                                            {% else %}
+                                                <span class="text-slate-500 text-xs">ASIN Inválido</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
                 
                 <!-- Pagination -->
@@ -446,6 +588,44 @@
         url.searchParams.set('perpage', value);
         url.searchParams.set('page', '1'); // Resetear a la primera página
         window.location.href = url.toString();
+    }
+    
+    // View mode management
+    const VIEW_KEY = 'bestsellers_view_mode';
+    const cardView = document.getElementById('cardView');
+    const tableView = document.getElementById('tableView');
+    const cardBtn = document.getElementById('viewCardBtn');
+    const tableBtn = document.getElementById('viewTableBtn');
+    
+    // Load saved view preference
+    if (cardView && tableView && cardBtn && tableBtn) {
+        const savedView = localStorage.getItem(VIEW_KEY) || 'card';
+        setView(savedView);
+        
+        // View toggle buttons
+        cardBtn.addEventListener('click', () => setView('card'));
+        tableBtn.addEventListener('click', () => setView('table'));
+    }
+    
+    function setView(view) {
+        if (!cardView || !tableView || !cardBtn || !tableBtn) return;
+        
+        if (view === 'card') {
+            cardView.classList.remove('hidden');
+            tableView.classList.add('hidden');
+            cardBtn.classList.add('bg-keepa-blue-500', 'text-white');
+            cardBtn.classList.remove('text-slate-300', 'hover:text-white');
+            tableBtn.classList.remove('bg-keepa-blue-500', 'text-white');
+            tableBtn.classList.add('text-slate-300', 'hover:text-white');
+        } else {
+            cardView.classList.add('hidden');
+            tableView.classList.remove('hidden');
+            tableBtn.classList.add('bg-keepa-blue-500', 'text-white');
+            tableBtn.classList.remove('text-slate-300', 'hover:text-white');
+            cardBtn.classList.remove('bg-keepa-blue-500', 'text-white');
+            cardBtn.classList.add('text-slate-300', 'hover:text-white');
+        }
+        localStorage.setItem(VIEW_KEY, view);
     }
 </script>
 {% endblock %}

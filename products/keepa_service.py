@@ -38,26 +38,27 @@ class KeepaService:
             logger.error(f"Error inicializando Keepa API: {e}")
             raise
     
-    def query_product(self, asin: str) -> Optional[Dict[str, Any]]:
+    def query_product(self, asin: str, domain: str = 'MX') -> Optional[Dict[str, Any]]:
         """
         Consulta un producto por ASIN
         
         Args:
             asin (str): ASIN del producto a consultar
+            domain (str): Dominio de Amazon ('MX', 'US', 'UK', etc.). Default: 'MX' (México)
             
         Returns:
             Dict con los datos del producto o None si hay error
         """
         try:
-            logger.info(f"Consultando producto ASIN: {asin}")
+            logger.info(f"Consultando producto ASIN: {asin} (domain: {domain})")
             
             # Verificar que el ASIN tenga el formato correcto
             if len(asin) != 10:
                 logger.error(f"ASIN inválido: {asin} (debe tener 10 caracteres)")
                 return None
             
-            # Realizar la consulta con historial completo y stats
-            products = self.api.query(asin, history=True, stats=90, rating=True)
+            # Realizar la consulta con historial completo y stats, usando dominio MX por defecto
+            products = self.api.query(asin, history=True, stats=90, rating=True, domain=domain)
             
             if not products:
                 logger.warning(f"No se encontró el producto con ASIN: {asin}")
@@ -289,7 +290,8 @@ class KeepaService:
         if len(valid_prices) == 0:
             return None
         
-        # Los precios de Keepa vienen en dólares, convertir a centavos para almacenar
+        # Los precios de Keepa vienen en la moneda local (pesos mexicanos para MX, dólares para US)
+        # Convertir a centavos para almacenar (multiplicar por 100)
         return int(valid_prices[-1] * 100)  # Último precio válido en centavos
     
     def _safe_int(self, value) -> Optional[int]:
@@ -633,20 +635,21 @@ class KeepaService:
             logger.error(f"Error buscando productos: {e}")
             return []
     
-    def get_product_offers(self, asin: str, offers_count: int = 20) -> List[Dict[str, Any]]:
+    def get_product_offers(self, asin: str, offers_count: int = 20, domain: str = 'MX') -> List[Dict[str, Any]]:
         """
         Obtiene ofertas de un producto
         
         Args:
             asin: ASIN del producto
             offers_count: Número de ofertas a obtener
+            domain: Dominio de Amazon ('MX', 'US', 'UK', etc.). Default: 'MX' (México)
             
         Returns:
             Lista de ofertas
         """
         try:
-            logger.info(f"Obteniendo ofertas para ASIN: {asin}")
-            products = self.api.query(asin, offers=offers_count)
+            logger.info(f"Obteniendo ofertas para ASIN: {asin} (domain: {domain})")
+            products = self.api.query(asin, offers=offers_count, domain=domain)
             
             if not products:
                 return []

@@ -1036,7 +1036,8 @@ def handle_best_sellers_request(request, user_message: str, intent_data: Dict[st
                     asins_to_fetch,
                     history=False,
                     stats=90,  # Necesitamos stats para rating y review_count
-                    rating=True
+                    rating=True,
+                    domain='MX'  # Usar dominio México para obtener precios en pesos mexicanos
                 )
             except Exception as e:
                 logger.error(f"Error consultando productos best sellers: {e}")
@@ -1543,113 +1544,230 @@ def best_sellers_view(request):
                         messages.warning(request, f'No se encontraron best sellers para la categoría seleccionada. Verifica que el ID de categoría sea válido y que existan productos en esa categoría.')
                         logger.warning(f"No se encontraron best sellers para category_id: '{category_id}'")
                     else:
-                        # Asegurar que todos los productos estén en BD antes de mostrarlos
-                        # Esto permite que luego se puedan consultar con información completa
-                        asins_to_process = asins[:100]  # Limitar a 100 para no consumir demasiados tokens
-                        logger.info(f"[BEST_SELLERS_VIEW] Asegurando que {len(asins_to_process)} productos estén en BD...")
+                        # Calcular qué ASINs se necesitan para la página actual (paginación lazy)
+                        try:
+                            page_number_int = int(page_number)
+                        except (ValueError, TypeError):
+                            page_number_int = 1
                         
-                        products_ensured = 0
-                        for asin in asins_to_process:
-                            try:
-                                product = ensure_product_in_db(asin, request.user, keepa_service)
-                                if product:
-                                    products_ensured += 1
-                            except Exception as e:
-                                logger.warning(f"[BEST_SELLERS_VIEW] Error asegurando producto {asin} en BD: {e}")
-                                continue
+                        # Calcular índices de ASINs para la página actual
+                        start_index = (page_number_int - 1) * perpage
+                        end_index = start_index + perpage
+                        asins_for_page = asins[start_index:end_index]
                         
-                        logger.info(f"[BEST_SELLERS_VIEW] {products_ensured} productos asegurados en BD de {len(asins_to_process)}")
+                        logger.info(f"[BEST_SELLERS_VIEW] Página {page_number_int}, perpage {perpage}: ASINs {start_index}-{end_index} de {len(asins)} totales")
                         
-                        # Consultar información básica de cada ASIN en batch
-                        # Usar query sin historial completo para ahorrar tokens (ya están en BD con historial completo)
-                        logger.info(f"Consultando información de {len(asins_to_process)} best sellers para mostrar")
-                        
-                        # Consultar productos en batch con stats para obtener rating y review count
-                        products_raw = keepa_service.api.query(
-                            asins_to_process,
-                            history=False,  # Sin historial para ahorrar tokens (ya están guardados en BD)
-                            stats=90,  # Con estadísticas para obtener rating y review count
-                            rating=True  # Con rating para obtener información completa
-                        )
-                        
-                        logger.info(f"Productos raw obtenidos de Keepa: {len(products_raw) if products_raw else 0}")
-                        
-                        # Contador de tipos de productos para debugging
-                        binding_counts = {}
-                        
-                        # Parsear información básica de cada producto
-                        for product_raw in products_raw:
-                            try:
-                                # Extraer información básica incluyendo binding para verificar tipo
-                                product_basic = {
-                                    'asin': product_raw.get('asin', ''),
-                                    'title': product_raw.get('title', ''),
-                                    'brand': product_raw.get('brand', ''),
-                                    'binding': product_raw.get('binding', ''),  # Tipo de producto (Books, Electronics, etc.)
-                                    'image_url': keepa_service._extract_image_url(product_raw),
-                                    'rating': None,
-                                    'review_count': None,
-                                    'sales_rank_current': None,
-                                    'current_price_new': None,
-                                    'current_price_amazon': None,
-                                    'current_price_used': None,
-                                }
-                                
-                                # Log para debugging - ver qué tipo de productos está obteniendo
-                                binding = product_basic.get('binding', 'Unknown')
-                                if binding:
-                                    binding_counts[binding] = binding_counts.get(binding, 0) + 1
-                                    logger.debug(f"Producto ASIN {product_basic['asin']}: binding={binding}, title={product_basic['title'][:50]}")
-                                
-                                # Extraer rating y review count desde stats si están disponibles
-                                stats = product_raw.get('stats', {})
-                                if stats:
-                                    current = stats.get('current', [])
-                                    if current and len(current) > 0:
-                                        # Rating (índice 16)
-                                        if len(current) > 16:
-                                            rating = current[16]
-                                            if rating is not None and rating > 0:
-                                                product_basic['rating'] = round(rating / 10.0, 1)
-                                        
-                                        # Review count (índice 17)
-                                        if len(current) > 17:
-                                            review_count = current[17]
-                                            if review_count is not None and review_count >= 0:
-                                                product_basic['review_count'] = int(review_count)
-                                        
-                                        # Sales rank (índice 3)
-                                        if len(current) > 3:
-                                            sales_rank = current[3]
-                                            if sales_rank is not None and sales_rank > 0:
-                                                product_basic['sales_rank_current'] = int(sales_rank)
-                                
-                                # Extraer precios actuales si están disponibles
-                                data = product_raw.get('data', {})
-                                if data:
-                                    product_basic['current_price_new'] = keepa_service._get_latest_price(data.get('NEW', []))
-                                    product_basic['current_price_amazon'] = keepa_service._get_latest_price(data.get('AMAZON', []))
-                                    product_basic['current_price_used'] = keepa_service._get_latest_price(data.get('USED', []))
-                                
-                                # Solo agregar si tiene ASIN y título
-                                if product_basic['asin'] and product_basic['title']:
-                                    # Convertir precios de centavos a dólares para mostrar
-                                    if product_basic['current_price_new']:
-                                        product_basic['current_price_new'] = round(float(product_basic['current_price_new']) / 100, 2)
-                                    if product_basic['current_price_amazon']:
-                                        product_basic['current_price_amazon'] = round(float(product_basic['current_price_amazon']) / 100, 2)
-                                    if product_basic['current_price_used']:
-                                        product_basic['current_price_used'] = round(float(product_basic['current_price_used']) / 100, 2)
+                        if not asins_for_page:
+                            logger.warning(f"[BEST_SELLERS_VIEW] No hay ASINs para la página {page_number_int}")
+                            products_data = []
+                        else:
+                            # Verificar qué productos ya existen en BD
+                            existing_products = Product.objects.filter(asin__in=asins_for_page).values_list('asin', flat=True)
+                            existing_asins_set = set(existing_products)
+                            new_asins = [asin for asin in asins_for_page if asin not in existing_asins_set]
+                            
+                            logger.info(f"[BEST_SELLERS_VIEW] {len(existing_asins_set)} productos ya en BD, {len(new_asins)} nuevos para obtener")
+                            
+                            # Consultar productos en batch solo para los ASINs de la página actual
+                            # Usar query sin historial completo para ahorrar tokens
+                            logger.info(f"[BEST_SELLERS_VIEW] Consultando información de {len(asins_for_page)} best sellers para la página actual")
+                            
+                            products_raw = keepa_service.api.query(
+                                asins_for_page,
+                                history=False,  # Sin historial para ahorrar tokens
+                                stats=365,  # Con estadísticas ampliadas (365 días) para obtener precios actuales y rating
+                                rating=True,  # Con rating para obtener información completa
+                                update=0,  # No forzar actualización (usa cache cuando está disponible)
+                                domain='MX'  # Usar dominio México para obtener precios en pesos mexicanos
+                            )
+                            
+                            logger.info(f"Productos raw obtenidos de Keepa: {len(products_raw) if products_raw else 0}")
+                            
+                            # Contador de tipos de productos para debugging
+                            binding_counts = {}
+                            
+                            # Lista para batch insert/update en BD
+                            products_to_save = []
+                            
+                            # Parsear información básica de cada producto
+                            for product_raw in products_raw:
+                                try:
+                                    # Extraer ASIN y validar que no esté vacío
+                                    raw_asin = product_raw.get('asin', '')
+                                    asin_clean = str(raw_asin).strip().upper() if raw_asin else ''
                                     
-                                    products_data.append(product_basic)
+                                    # Si no hay ASIN válido, saltar este producto
+                                    if not asin_clean or len(asin_clean) != 10:
+                                        logger.warning(f"Producto sin ASIN válido encontrado en best sellers. ASIN recibido: '{raw_asin}'")
+                                        continue
                                     
-                            except Exception as e:
-                                logger.warning(f"Error parseando producto best seller: {e}")
-                                continue
-                        
-                        # Log de resumen de tipos de productos
-                        if binding_counts:
-                            logger.info(f"Resumen de tipos de productos obtenidos: {binding_counts}")
+                                    # Extraer información básica incluyendo binding para verificar tipo
+                                    product_basic = {
+                                        'asin': asin_clean,
+                                        'title': product_raw.get('title', ''),
+                                        'brand': product_raw.get('brand', ''),
+                                        'binding': product_raw.get('binding', ''),  # Tipo de producto (Books, Electronics, etc.)
+                                        'image_url': keepa_service._extract_image_url(product_raw),
+                                        'rating': None,
+                                        'review_count': None,
+                                        'sales_rank_current': None,
+                                        'current_price_new': None,
+                                        'current_price_amazon': None,
+                                        'current_price_used': None,
+                                    }
+                                    
+                                    # Log para debugging - ver qué tipo de productos está obteniendo
+                                    binding = product_basic.get('binding', 'Unknown')
+                                    if binding:
+                                        binding_counts[binding] = binding_counts.get(binding, 0) + 1
+                                        logger.debug(f"Producto ASIN {product_basic['asin']}: binding={binding}, title={product_basic['title'][:50]}")
+                                    
+                                    # Extraer rating y review count desde stats si están disponibles
+                                    stats = product_raw.get('stats', {})
+                                    if stats:
+                                        current = stats.get('current', [])
+                                        if current and len(current) > 0:
+                                            # Rating (índice 16)
+                                            if len(current) > 16:
+                                                rating = current[16]
+                                                if rating is not None and rating > 0:
+                                                    product_basic['rating'] = round(rating / 10.0, 1)
+                                            
+                                            # Review count (índice 17)
+                                            if len(current) > 17:
+                                                review_count = current[17]
+                                                if review_count is not None and review_count >= 0:
+                                                    product_basic['review_count'] = int(review_count)
+                                            
+                                            # Sales rank (índice 3)
+                                            if len(current) > 3:
+                                                sales_rank = current[3]
+                                                if sales_rank is not None and sales_rank > 0:
+                                                    product_basic['sales_rank_current'] = int(sales_rank)
+                                    
+                                    # Extraer precios actuales desde múltiples fuentes
+                                    # IMPORTANTE: Todos los precios de Keepa API vienen en centavos (multiplicados por 100)
+                                    # Necesitamos dividir entre 100 para obtener la moneda local (pesos mexicanos para MX, dólares para US)
+                                    
+                                    # 1. Intentar desde data (arrays de historial) - _get_latest_price devuelve en centavos
+                                    data = product_raw.get('data', {})
+                                    if data:
+                                        new_price_from_data = keepa_service._get_latest_price(data.get('NEW', []))
+                                        amazon_price_from_data = keepa_service._get_latest_price(data.get('AMAZON', []))
+                                        used_price_from_data = keepa_service._get_latest_price(data.get('USED', []))
+                                        
+                                        if new_price_from_data:
+                                            # _get_latest_price devuelve en centavos, convertir a moneda local
+                                            product_basic['current_price_new'] = round(float(new_price_from_data) / 100, 2)
+                                            logger.debug(f"Precio desde data.NEW para {asin_clean}: {new_price_from_data} centavos -> {product_basic['current_price_new']}")
+                                        if amazon_price_from_data:
+                                            product_basic['current_price_amazon'] = round(float(amazon_price_from_data) / 100, 2)
+                                        if used_price_from_data:
+                                            product_basic['current_price_used'] = round(float(used_price_from_data) / 100, 2)
+                                    
+                                    # 2. Si no hay precios desde data, intentar desde campos directos (cuando history=False)
+                                    # NOTA: Estos campos también vienen en centavos, dividir entre 100
+                                    if not product_basic['current_price_new']:
+                                        # Buscar en campos directos del producto
+                                        buy_box_price = product_raw.get('buyBoxPrice', None)
+                                        list_price = product_raw.get('listPrice', None)
+                                        price = product_raw.get('price', None)
+                                        
+                                        # Priorizar buyBoxPrice (precio de Amazon), luego price, luego listPrice
+                                        if buy_box_price and buy_box_price > 0:
+                                            # Los precios vienen en centavos, dividir entre 100
+                                            product_basic['current_price_new'] = round(float(buy_box_price) / 100, 2)
+                                            logger.debug(f"Precio desde buyBoxPrice para {asin_clean}: {buy_box_price} centavos -> {product_basic['current_price_new']} {product_raw.get('domain', 'MX')}")
+                                        elif price and price > 0:
+                                            product_basic['current_price_new'] = round(float(price) / 100, 2)
+                                            logger.debug(f"Precio desde price para {asin_clean}: {price} centavos -> {product_basic['current_price_new']}")
+                                        elif list_price and list_price > 0:
+                                            product_basic['current_price_new'] = round(float(list_price) / 100, 2)
+                                            logger.debug(f"Precio desde listPrice para {asin_clean}: {list_price} centavos -> {product_basic['current_price_new']}")
+                                    
+                                    # 3. Intentar desde stats si aún no hay precios
+                                    # NOTA: Los precios en stats.current también vienen en centavos, dividir entre 100
+                                    if not product_basic['current_price_new']:
+                                        stats = product_raw.get('stats', {})
+                                        if stats:
+                                            # Los precios en stats pueden estar en diferentes índices
+                                            # Índice 0: NEW price, Índice 1: USED price, Índice 2: AMAZON price
+                                            current = stats.get('current', [])
+                                            if current and len(current) > 0:
+                                                # NEW price (índice 0)
+                                                if len(current) > 0 and current[0] is not None and current[0] > 0:
+                                                    product_basic['current_price_new'] = round(float(current[0]) / 100, 2)
+                                                    logger.debug(f"Precio desde stats.current[0] para {asin_clean}: {current[0]} centavos -> {product_basic['current_price_new']}")
+                                                # AMAZON price (índice 2)
+                                                if len(current) > 2 and current[2] is not None and current[2] > 0 and not product_basic['current_price_amazon']:
+                                                    product_basic['current_price_amazon'] = round(float(current[2]) / 100, 2)
+                                                # USED price (índice 1)
+                                                if len(current) > 1 and current[1] is not None and current[1] > 0 and not product_basic['current_price_used']:
+                                                    product_basic['current_price_used'] = round(float(current[1]) / 100, 2)
+                                    
+                                    # Solo agregar si tiene título (ASIN ya está validado arriba)
+                                    if product_basic.get('title'):
+                                        products_data.append(product_basic)
+                                        
+                                        # Preparar producto para guardar en BD (solo si es nuevo)
+                                        if product_basic['asin'] in new_asins:
+                                            try:
+                                                # Parsear datos completos del producto para guardar en BD
+                                                parsed_product_data = keepa_service.parse_product_data(product_raw)
+                                                products_to_save.append({
+                                                    'asin': parsed_product_data['asin'],
+                                                    'data': parsed_product_data,
+                                                    'raw_data': product_raw
+                                                })
+                                            except Exception as e:
+                                                logger.warning(f"Error preparando producto {product_basic['asin']} para BD: {e}")
+                                        
+                                except Exception as e:
+                                    logger.warning(f"Error parseando producto best seller: {e}")
+                                    continue
+                            
+                            # Batch save de productos nuevos en BD
+                            if products_to_save:
+                                logger.info(f"[BEST_SELLERS_VIEW] Guardando {len(products_to_save)} productos nuevos en BD...")
+                                saved_count = 0
+                                for product_info in products_to_save:
+                                    try:
+                                        with transaction.atomic():
+                                            # Verificar nuevamente si existe (por si acaso)
+                                            if not Product.objects.filter(asin=product_info['asin']).exists():
+                                                product_data = product_info['data']
+                                                Product.objects.create(
+                                                    asin=product_data['asin'],
+                                                    title=product_data['title'],
+                                                    brand=product_data.get('brand'),
+                                                    image_url=product_data.get('image_url'),
+                                                    color=product_data.get('color'),
+                                                    binding=product_data.get('binding'),
+                                                    availability_amazon=product_data.get('availability_amazon', 0),
+                                                    categories=product_data.get('categories', []),
+                                                    category_tree=product_data.get('category_tree', []),
+                                                    current_price_new=product_data.get('current_price_new'),
+                                                    current_price_amazon=product_data.get('current_price_amazon'),
+                                                    current_price_used=product_data.get('current_price_used'),
+                                                    sales_rank_current=product_data.get('sales_rank_current'),
+                                                    rating=product_data.get('rating'),
+                                                    review_count=product_data.get('review_count'),
+                                                    price_history=product_data.get('price_history', {}),
+                                                    rating_history=product_data.get('rating_history', {}),
+                                                    sales_rank_history=product_data.get('sales_rank_history', {}),
+                                                    reviews_data=product_data.get('reviews_data', {}),
+                                                    queried_by=request.user
+                                                )
+                                                saved_count += 1
+                                    except Exception as e:
+                                        logger.warning(f"[BEST_SELLERS_VIEW] Error guardando producto {product_info['asin']} en BD: {e}")
+                                        continue
+                                
+                                logger.info(f"[BEST_SELLERS_VIEW] {saved_count} productos nuevos guardados en BD")
+                            
+                            # Log de resumen de tipos de productos
+                            if binding_counts:
+                                logger.info(f"Resumen de tipos de productos obtenidos: {binding_counts}")
                             logger.info(f"Total de productos parseados: {len(products_data)}")
                         
                         # Obtener nombre de la categoría usando una búsqueda específica
@@ -1666,18 +1784,22 @@ def best_sellers_view(request):
                         except:
                             pass
                         
-                        # Guardar el conteo de resultados
-                        results_count = len(products_data)
+                        # Guardar el conteo de resultados (total de ASINs, no solo los de la página)
+                        results_count = len(asins)
                         
-                        # Paginación
-                        paginator = Paginator(products_data, 20)  # 20 productos por página
+                        # Paginación: usar perpage y crear paginador sobre los ASINs totales
+                        # Pero mostrar solo los productos parseados de la página actual
+                        paginator = Paginator(asins, perpage)  # Paginar sobre ASINs totales
                         try:
-                            page_number = int(page_number)
-                            page_obj = paginator.page(page_number)
+                            page_number_int = int(page_number)
+                            page_obj = paginator.page(page_number_int)
                         except (ValueError, TypeError):
                             page_obj = paginator.page(1)
                         except:
                             page_obj = paginator.page(1)
+                        
+                        # Los productos_data ya están limitados a la página actual
+                        # No necesitamos paginar products_data, solo los ASINs
                         
                         # Guardar o actualizar la búsqueda en el historial
                         # Solo guardar si hay resultados o si es una búsqueda válida
@@ -1766,7 +1888,7 @@ def best_sellers_view(request):
             'category_search': category_search,  # Para pre-llenar el input
             'category_name': category_name,
             'page_obj': page_obj,
-            'products': page_obj.object_list if page_obj else [],
+            'products': products_data,  # Lista de productos parseados con información completa
             'breadcrumbs': breadcrumbs,
             'recent_searches': recent_searches,
             'extra_pagination_params': extra_pagination_params,
@@ -1843,7 +1965,8 @@ def best_sellers_api_view(request):
                 asins[:100],  # Limitar a 100
                 history=False,
                 stats=0,
-                rating=False
+                rating=False,
+                domain='MX'  # Usar dominio México para obtener precios en pesos mexicanos
             )
             
             # Parsear información básica
