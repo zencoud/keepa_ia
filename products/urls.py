@@ -26,4 +26,9 @@ urlpatterns = [
     path('ai-chat/', views.ai_chat_view, name='ai_chat'),
     path('generate-ai-summary/<str:asin>/', views.generate_ai_summary_view, name='generate_ai_summary'),
     path('generate-document/', views.generate_document_view, name='generate_document'),
+    
+    # Best Sellers
+    path('categories/search/', views.search_categories_view, name='search_categories'),
+    path('bestsellers/', views.best_sellers_view, name='best_sellers'),
+    path('bestsellers/api/', views.best_sellers_api_view, name='best_sellers_api'),
 ]

@@ -660,3 +660,115 @@ class KeepaService:
         except Exception as e:
             logger.error(f"Error obteniendo ofertas para {asin}: {e}")
             return []
+    
+    def search_categories(self, query: str) -> List[Dict[str, Any]]:
+        """
+        Busca categorías por nombre
+        
+        Args:
+            query: Nombre o término de búsqueda de la categoría
+            
+        Returns:
+            Lista de diccionarios con información de categorías encontradas
+            Cada diccionario contiene: id, name, contextFreeName, domainId
+        """
+        try:
+            logger.info(f"Buscando categorías con query: {query}")
+            
+            if not query or not query.strip():
+                logger.warning("Query de búsqueda de categoría vacío")
+                return []
+            
+            # Buscar categorías usando la API de Keepa
+            categories = self.api.search_for_categories(query.strip())
+            
+            if not categories:
+                logger.info(f"No se encontraron categorías para: {query}")
+                return []
+            
+            # Convertir el diccionario de categorías a lista de diccionarios
+            category_list = []
+            for category_id, category_data in categories.items():
+                category_list.append({
+                    'id': str(category_id),
+                    'name': category_data.get('name', ''),
+                    'contextFreeName': category_data.get('contextFreeName', ''),
+                    'domainId': category_data.get('domainId', 1),
+                })
+            
+            logger.info(f"Encontradas {len(category_list)} categorías para: {query}")
+            return category_list
+            
+        except Exception as e:
+            logger.error(f"Error buscando categorías para '{query}': {e}")
+            return []
+    
+    def get_best_sellers(self, category_id: str, domain: str = 'US') -> List[str]:
+        """
+        Obtiene los ASINs de los productos best sellers de una categoría
+        
+        Args:
+            category_id: ID de la categoría de Amazon (como string, ej: "541966")
+            domain: Dominio de Amazon ('US', 'UK', 'DE', etc.). Default: 'US'
+            
+        Returns:
+            Lista de ASINs ordenados por popularidad
+        """
+        try:
+            category_id_clean = str(category_id).strip() if category_id else ""
+            
+            logger.info(f"Obteniendo best sellers para categoría '{category_id_clean}' (domain: {domain})")
+            
+            if not category_id_clean:
+                logger.error("category_id no puede estar vacío")
+                return []
+            
+            # Validar que category_id sea numérico (los IDs de categoría son números)
+            if not category_id_clean.isdigit():
+                logger.error(f"category_id debe ser numérico. Recibido: '{category_id_clean}'")
+                return []
+            
+            # Consultar best sellers usando la API de Keepa
+            # El método espera domain como string ('US', 'UK', etc.) no como int
+            logger.debug(f"Llamando a api.best_sellers_query con category='{category_id_clean}', domain='{domain}'")
+            best_sellers = self.api.best_sellers_query(category_id_clean, domain=domain)
+            
+            logger.debug(f"Respuesta de best_sellers_query: tipo={type(best_sellers)}, valor={best_sellers}")
+            
+            if not best_sellers:
+                logger.warning(f"No se encontraron best sellers para categoría {category_id_clean} (domain: {domain})")
+                return []
+            
+            # La respuesta puede ser una lista o None
+            if not isinstance(best_sellers, list):
+                logger.warning(f"Respuesta inesperada de best_sellers_query: {type(best_sellers)}")
+                return []
+            
+            # Asegurar que todos los ASINs sean strings válidos
+            asin_list = []
+            for asin in best_sellers:
+                if asin:
+                    asin_str = str(asin).strip()
+                    if len(asin_str) == 10:  # Los ASINs tienen 10 caracteres
+                        asin_list.append(asin_str)
+                    else:
+                        logger.warning(f"ASIN inválido encontrado: '{asin_str}' (longitud: {len(asin_str)})")
+            
+            logger.info(f"Encontrados {len(asin_list)} best sellers válidos para categoría {category_id_clean} (domain: {domain})")
+            return asin_list
+            
+        except Exception as e:
+            error_msg = str(e)
+            import traceback
+            logger.error(f"Error obteniendo best sellers para categoría {category_id}: {error_msg}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            # Proporcionar mensajes más específicos según el tipo de error
+            if "INVALID_CATEGORY" in error_msg or "CATEGORY_NOT_FOUND" in error_msg:
+                logger.error(f"Categoría inválida o no encontrada: {category_id}")
+            elif "REQUEST_REJECTED" in error_msg:
+                logger.error("La solicitud fue rechazada por Keepa API. Verifica tu token y suscripción.")
+            elif "domain" in error_msg.lower():
+                logger.error(f"Error con el dominio '{domain}'. Verifica que sea válido (ej: 'US', 'UK', 'DE')")
+            
+            return []

@@ -957,3 +957,353 @@ def generate_document_view(request):
             'success': False,
             'error': 'Error procesando la solicitud'
         }, status=500)
+
+
+# ===== VISTAS PARA BEST SELLERS =====
+
+@login_required
+@require_http_methods(["GET"])
+def search_categories_view(request):
+    """
+    Vista AJAX para buscar categorías por nombre
+    GET: ?q=nombre_categoria
+    """
+    try:
+        query = request.GET.get('q', '').strip()
+        
+        if not query:
+            return JsonResponse({
+                'success': False,
+                'error': 'El parámetro "q" es requerido'
+            }, status=400)
+        
+        try:
+            keepa_service = KeepaService()
+            categories = keepa_service.search_categories(query)
+            
+            return JsonResponse({
+                'success': True,
+                'categories': categories,
+                'count': len(categories)
+            })
+            
+        except ValueError as e:
+            logger.error(f"Error de configuración Keepa: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Error de configuración del sistema'
+            }, status=500)
+            
+    except Exception as e:
+        logger.error(f"Error en search_categories_view: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error procesando la solicitud'
+        }, status=500)
+
+
+@login_required
+def best_sellers_view(request):
+    """
+    Vista principal para listar best sellers de una categoría
+    GET: ?category_id=X&page=1
+    """
+    try:
+        category_id = request.GET.get('category_id', '').strip()
+        page_number = request.GET.get('page', 1)
+        
+        logger.info(f"best_sellers_view - category_id recibido: '{category_id}'")
+        
+        category_name = None
+        products_data = []
+        paginator = None
+        page_obj = None
+        
+        if category_id:
+            # Validar que category_id sea numérico
+            if not category_id.isdigit():
+                messages.error(request, f'ID de categoría inválido: "{category_id}". El ID debe ser numérico.')
+                logger.error(f"Category ID no es numérico: '{category_id}'")
+                category_id = ''  # Limpiar para que no entre al bloque de búsqueda
+            else:
+                # category_id es válido, proceder con la búsqueda
+                try:
+                    keepa_service = KeepaService()
+                    
+                    logger.info(f"Buscando best sellers para category_id: '{category_id}'")
+                    
+                    # Obtener ASINs de best sellers
+                    asins = keepa_service.get_best_sellers(category_id)
+                    
+                    logger.info(f"Best sellers obtenidos: {len(asins) if asins else 0} ASINs")
+                    
+                    if not asins:
+                        messages.warning(request, f'No se encontraron best sellers para la categoría seleccionada. Verifica que el ID de categoría sea válido y que existan productos en esa categoría.')
+                        logger.warning(f"No se encontraron best sellers para category_id: '{category_id}'")
+                    else:
+                        # Consultar información básica de cada ASIN en batch
+                        # Usar query sin historial completo para ahorrar tokens
+                        logger.info(f"Consultando información de {len(asins)} best sellers")
+                        
+                        # Consultar productos en batch (máximo eficiencia de tokens)
+                        products_raw = keepa_service.api.query(
+                            asins[:100],  # Limitar a 100 para no consumir demasiados tokens
+                            history=False,  # Sin historial para ahorrar tokens
+                            stats=0,  # Sin estadísticas
+                            rating=False  # Sin rating history
+                        )
+                        
+                        # Parsear información básica de cada producto
+                        for product_raw in products_raw:
+                            try:
+                                # Extraer solo información básica
+                                product_basic = {
+                                    'asin': product_raw.get('asin', ''),
+                                    'title': product_raw.get('title', ''),
+                                    'brand': product_raw.get('brand', ''),
+                                    'image_url': keepa_service._extract_image_url(product_raw),
+                                    'rating': None,
+                                    'review_count': None,
+                                    'sales_rank_current': None,
+                                    'current_price_new': None,
+                                    'current_price_amazon': None,
+                                    'current_price_used': None,
+                                }
+                                
+                                # Extraer rating y review count desde stats si están disponibles
+                                stats = product_raw.get('stats', {})
+                                if stats:
+                                    current = stats.get('current', {})
+                                    if current and len(current) > 16:
+                                        rating = current[16]
+                                        if rating is not None and rating > 0:
+                                            product_basic['rating'] = round(rating / 10.0, 1)
+                                    
+                                    if current and len(current) > 17:
+                                        review_count = current[17]
+                                        if review_count is not None and review_count >= 0:
+                                            product_basic['review_count'] = int(review_count)
+                                    
+                                    if current and len(current) > 3:
+                                        sales_rank = current[3]
+                                        if sales_rank is not None and sales_rank > 0:
+                                            product_basic['sales_rank_current'] = int(sales_rank)
+                                
+                                # Extraer precios actuales si están disponibles
+                                data = product_raw.get('data', {})
+                                if data:
+                                    product_basic['current_price_new'] = keepa_service._get_latest_price(data.get('NEW', []))
+                                    product_basic['current_price_amazon'] = keepa_service._get_latest_price(data.get('AMAZON', []))
+                                    product_basic['current_price_used'] = keepa_service._get_latest_price(data.get('USED', []))
+                                
+                                # Solo agregar si tiene ASIN y título
+                                if product_basic['asin'] and product_basic['title']:
+                                    # Convertir precios de centavos a dólares para mostrar
+                                    if product_basic['current_price_new']:
+                                        product_basic['current_price_new'] = round(float(product_basic['current_price_new']) / 100, 2)
+                                    if product_basic['current_price_amazon']:
+                                        product_basic['current_price_amazon'] = round(float(product_basic['current_price_amazon']) / 100, 2)
+                                    if product_basic['current_price_used']:
+                                        product_basic['current_price_used'] = round(float(product_basic['current_price_used']) / 100, 2)
+                                    
+                                    products_data.append(product_basic)
+                                    
+                            except Exception as e:
+                                logger.warning(f"Error parseando producto best seller: {e}")
+                                continue
+                        
+                        # Obtener nombre de la categoría usando una búsqueda específica
+                        # Intentar obtener info de la categoría consultando directamente
+                        # Si no funciona, buscar usando un término común
+                        try:
+                            # Intentar buscar categorías que contengan el ID
+                            test_categories = keepa_service.search_categories(category_id)
+                            if test_categories:
+                                for cat in test_categories:
+                                    if cat['id'] == category_id:
+                                        category_name = cat['name']
+                                        break
+                        except:
+                            pass
+                        
+                        # Paginación
+                        paginator = Paginator(products_data, 20)  # 20 productos por página
+                        try:
+                            page_obj = paginator.page(page_number)
+                        except:
+                            page_obj = paginator.page(1)
+                        
+                except ValueError as e:
+                    messages.error(request, 'Error de configuración del sistema. Por favor, contacta al administrador.')
+                    logger.error(f"Error de configuración Keepa: {e}", exc_info=True)
+                except Exception as e:
+                    logger.error(f"Error obteniendo best sellers para category_id '{category_id}': {e}", exc_info=True)
+                    error_msg = str(e)
+                    if "domain" in error_msg.lower():
+                        messages.error(request, 'Error con la configuración del dominio de Amazon. Por favor, contacta al administrador.')
+                    elif "category" in error_msg.lower():
+                        messages.error(request, f'Error con la categoría seleccionada. Verifica que el ID de categoría sea válido.')
+                    else:
+                        messages.error(request, f'Error al obtener los best sellers. Detalles: {error_msg[:100]}')
+        
+        # Breadcrumbs
+        breadcrumbs = [
+            {'text': 'Inicio', 'url': '/dashboard/'},
+            {'text': 'Productos', 'url': '/products/list/'},
+            {'text': 'Best Sellers'},
+        ]
+        
+        if category_name:
+            breadcrumbs.append({'text': category_name})
+        
+        context = {
+            'category_id': category_id,
+            'category_name': category_name,
+            'page_obj': page_obj,
+            'products': page_obj if page_obj else [],
+            'breadcrumbs': breadcrumbs,
+        }
+        
+        return render(request, 'products/best_sellers.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error en best_sellers_view: {e}")
+        messages.error(request, 'Error procesando la solicitud.')
+        return redirect('products:list')
+
+
+@login_required
+@require_http_methods(["GET"])
+def best_sellers_api_view(request):
+    """
+    Vista AJAX para obtener best sellers en formato JSON
+    GET: ?category_id=X&page=1
+    """
+    try:
+        category_id = request.GET.get('category_id', '').strip()
+        page_number = int(request.GET.get('page', 1))
+        
+        if not category_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'El parámetro "category_id" es requerido'
+            }, status=400)
+        
+        try:
+            keepa_service = KeepaService()
+            
+            # Obtener ASINs de best sellers
+            asins = keepa_service.get_best_sellers(category_id)
+            
+            if not asins:
+                return JsonResponse({
+                    'success': True,
+                    'asins': [],
+                    'products': [],
+                    'count': 0,
+                    'page': 1,
+                    'total_pages': 0
+                })
+            
+            # Consultar información básica en batch
+            products_raw = keepa_service.api.query(
+                asins[:100],  # Limitar a 100
+                history=False,
+                stats=0,
+                rating=False
+            )
+            
+            # Parsear información básica
+            products_data = []
+            for product_raw in products_raw:
+                try:
+                    product_basic = {
+                        'asin': product_raw.get('asin', ''),
+                        'title': product_raw.get('title', ''),
+                        'brand': product_raw.get('brand', ''),
+                        'image_url': keepa_service._extract_image_url(product_raw),
+                        'rating': None,
+                        'review_count': None,
+                        'sales_rank_current': None,
+                        'current_price_new': None,
+                        'current_price_amazon': None,
+                    }
+                    
+                    # Extraer datos básicos desde stats
+                    stats = product_raw.get('stats', {})
+                    if stats:
+                        current = stats.get('current', {})
+                        if current:
+                            if len(current) > 16:
+                                rating = current[16]
+                                if rating is not None and rating > 0:
+                                    product_basic['rating'] = round(rating / 10.0, 1)
+                            if len(current) > 17:
+                                review_count = current[17]
+                                if review_count is not None and review_count >= 0:
+                                    product_basic['review_count'] = int(review_count)
+                            if len(current) > 3:
+                                sales_rank = current[3]
+                                if sales_rank is not None and sales_rank > 0:
+                                    product_basic['sales_rank_current'] = int(sales_rank)
+                    
+                    # Extraer precios
+                    data = product_raw.get('data', {})
+                    if data:
+                        product_basic['current_price_new'] = keepa_service._get_latest_price(data.get('NEW', []))
+                        product_basic['current_price_amazon'] = keepa_service._get_latest_price(data.get('AMAZON', []))
+                    
+                    if product_basic['asin'] and product_basic['title']:
+                        products_data.append(product_basic)
+                        
+                except Exception as e:
+                    logger.warning(f"Error parseando producto en API: {e}")
+                    continue
+            
+            # Paginación
+            paginator = Paginator(products_data, 20)
+            try:
+                page_obj = paginator.page(page_number)
+            except:
+                page_obj = paginator.page(1)
+            
+            # Convertir precios a formato legible
+            products_json = []
+            for p in page_obj:
+                product_json = {
+                    'asin': p['asin'],
+                    'title': p['title'],
+                    'brand': p.get('brand'),
+                    'image_url': p.get('image_url'),
+                    'rating': p.get('rating'),
+                    'review_count': p.get('review_count'),
+                    'sales_rank_current': p.get('sales_rank_current'),
+                    'current_price_new': float(p['current_price_new']) / 100 if p.get('current_price_new') else None,
+                    'current_price_amazon': float(p['current_price_amazon']) / 100 if p.get('current_price_amazon') else None,
+                }
+                products_json.append(product_json)
+            
+            return JsonResponse({
+                'success': True,
+                'asins': asins[:100],  # Retornar todos los ASINs consultados
+                'products': products_json,
+                'count': len(products_json),
+                'page': page_obj.number,
+                'total_pages': paginator.num_pages,
+                'has_next': page_obj.has_next(),
+                'has_previous': page_obj.has_previous(),
+            })
+            
+        except ValueError as e:
+            logger.error(f"Error de configuración Keepa: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Error de configuración del sistema'
+            }, status=500)
+            
+    except Exception as e:
+        logger.error(f"Error en best_sellers_api_view: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error procesando la solicitud'
+        }, status=500)

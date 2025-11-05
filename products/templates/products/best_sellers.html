@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% load static %}
+{% load messages_tags %}
+{% load humanize %}
+
+{% block title %}Best Sellers - Keepa IA{% endblock %}
+
+{% block content %}
+<!-- Header -->
+{% component "header" %}{% endcomponent %}
+
+<!-- Main Content -->
+<main class="min-h-screen pb-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Breadcrumbs -->
+        {% component "breadcrumbs" items=breadcrumbs %}{% endcomponent %}
+        
+        <!-- Messages -->
+        {% render_flash_messages %}
+        
+        <!-- Search Category Card -->
+        <div class="glass-card glass-card-hover mb-8 p-8 animate-fade-in">
+            <h2 class="text-3xl font-bold text-gradient mb-6 text-center">Best Sellers de Amazon</h2>
+            
+            <form method="get" action="{% url 'products:best_sellers' %}" class="max-w-2xl mx-auto">
+                <div class="mb-6">
+                    <label for="category_search" class="block text-sm font-semibold text-white mb-2">
+                        Buscar Categoría
+                    </label>
+                    <div class="relative">
+                        <input 
+                            type="text" 
+                            id="category_search" 
+                            name="category_search" 
+                            placeholder="Ej: laptops, electronics, books..." 
+                            autocomplete="off"
+                            class="form-input w-full pr-10"
+                        >
+                        <div id="category_results" class="hidden absolute z-50 w-full mt-2 bg-white/10 backdrop-blur-lg rounded-[40px] border border-white/20 shadow-xl max-h-60 overflow-y-auto"></div>
+                        <input type="hidden" id="category_id" name="category_id" value="{{ category_id }}">
+                    </div>
+                    <p class="text-sm text-slate-400 mt-2">
+                        Escribe el nombre de una categoría y selecciona de la lista de resultados
+                    </p>
+                </div>
+                
+                <button type="submit" class="btn-primary w-full py-3 text-base flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Ver Best Sellers
+                </button>
+            </form>
+        </div>
+        
+        <!-- Best Sellers Results -->
+        {% if category_id %}
+            <!-- Debug Info -->
+            {% if debug %}
+            <div class="glass-card mb-4 p-4 bg-yellow-500/20 border border-yellow-500/50">
+                <p class="text-sm text-yellow-200">Debug: Category ID = "{{ category_id }}"</p>
+            </div>
+            {% endif %}
+            
+            {% if products %}
+                <div class="glass-card glass-card-hover mb-6 p-6">
+                    <h3 class="text-2xl font-bold text-gradient mb-2">
+                        Best Sellers{% if category_name %}: {{ category_name }}{% endif %}
+                    </h3>
+                    <p class="text-slate-400">
+                        Mostrando {{ page_obj.start_index }} - {{ page_obj.end_index }} de {{ page_obj.paginator.count }} productos
+                    </p>
+                </div>
+                
+                <!-- Products Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    {% for product in products %}
+                        <div class="glass-card glass-card-hover p-6 hover:scale-105 transition-transform duration-200">
+                            <!-- Product Image -->
+                            {% if product.image_url %}
+                                <div class="mb-4">
+                                    <img src="{{ product.image_url }}" alt="{{ product.title }}" 
+                                         class="w-full h-48 object-contain rounded-[40px] bg-white/5">
+                                </div>
+                            {% endif %}
+                            
+                            <!-- Product Info -->
+                            <h4 class="text-lg font-bold text-white mb-2 line-clamp-2">
+                                {{ product.title }}
+                            </h4>
+                            
+                            <div class="space-y-2 mb-4">
+                                {% if product.brand %}
+                                    <p class="text-sm text-slate-400">Marca: <span class="text-white">{{ product.brand }}</span></p>
+                                {% endif %}
+                                
+                                {% if product.rating %}
+                                    <p class="text-sm text-slate-400">
+                                        Calificación: <span class="text-keepa-green-400 font-bold">{{ product.rating }} ⭐</span>
+                                        {% if product.review_count %}
+                                            <span class="text-slate-500">({{ product.review_count }} reseñas)</span>
+                                        {% endif %}
+                                    </p>
+                                {% endif %}
+                                
+                                {% if product.current_price_new %}
+                                    <p class="text-lg font-bold text-keepa-blue-400">
+                                        Precio: ${{ product.current_price_new|default:"N/A" }}
+                                    </p>
+                                {% elif product.current_price_amazon %}
+                                    <p class="text-lg font-bold text-keepa-blue-400">
+                                        Precio Amazon: ${{ product.current_price_amazon|default:"N/A" }}
+                                    </p>
+                                {% endif %}
+                                
+                                {% if product.sales_rank_current %}
+                                    <p class="text-sm text-slate-400">
+                                        Sales Rank: <span class="text-white">#{{ product.sales_rank_current|intcomma }}</span>
+                                    </p>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="flex gap-2">
+                                <a href="{% url 'products:search' %}" 
+                                   onclick="sessionStorage.setItem('prefill_asin', '{{ product.asin }}'); window.location.href='{% url 'products:search' %}'; return false;"
+                                   class="btn-primary flex-1 text-center py-2 text-sm">
+                                    Ver Detalles
+                                </a>
+                            </div>
+                            
+                            <p class="text-xs text-slate-500 mt-2 text-center">
+                                ASIN: {{ product.asin }}
+                            </p>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Pagination -->
+                {% component "pagination" page_obj=page_obj %}{% endcomponent %}
+            {% else %}
+                {% component "empty_state" 
+                    icon="📦"
+                    title="No se encontraron best sellers"
+                    message="No se encontraron productos best sellers para la categoría seleccionada. Intenta con otra categoría."
+                    action_url="{% url 'products:best_sellers' %}"
+                    action_text="Buscar Otra Categoría"
+                %}{% endcomponent %}
+            {% endif %}
+        {% else %}
+            <!-- Initial State -->
+            <div class="glass-card p-8 text-center">
+                <svg class="w-20 h-20 mx-auto mb-4 text-keepa-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <h3 class="text-2xl font-bold text-white mb-4">Descubre los Best Sellers</h3>
+                <p class="text-slate-400 mb-6 max-w-md mx-auto">
+                    Busca una categoría para ver los productos más vendidos en Amazon
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</main>
+
+<!-- Footer -->
+{% component "footer" %}{% endcomponent %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Autocompletado de categorías
+    const categorySearchInput = document.getElementById('category_search');
+    const categoryIdInput = document.getElementById('category_id');
+    const categoryResults = document.getElementById('category_results');
+    let searchTimeout;
+
+    if (categorySearchInput) {
+        categorySearchInput.addEventListener('input', function() {
+            const query = this.value.trim();
+            
+            // Limpiar timeout anterior
+            clearTimeout(searchTimeout);
+            
+            if (query.length < 2) {
+                categoryResults.classList.add('hidden');
+                categoryIdInput.value = '';
+                return;
+            }
+            
+            // Debounce: esperar 300ms después de que el usuario deje de escribir
+            searchTimeout = setTimeout(() => {
+                searchCategories(query);
+            }, 300);
+        });
+        
+        // Ocultar resultados al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (!categorySearchInput.contains(e.target) && !categoryResults.contains(e.target)) {
+                categoryResults.classList.add('hidden');
+            }
+        });
+    }
+    
+    function searchCategories(query) {
+        // Obtener CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                          document.cookie.split('; ')
+                            .find(row => row.startsWith('csrftoken='))
+                            ?.split('=')[1];
+        
+        fetch(`{% url 'products:search_categories' %}?q=${encodeURIComponent(query)}`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': csrfToken,
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.categories && data.categories.length > 0) {
+                displayCategoryResults(data.categories);
+            } else {
+                categoryResults.innerHTML = '<div class="p-4 text-center text-slate-400">No se encontraron categorías</div>';
+                categoryResults.classList.remove('hidden');
+            }
+        })
+        .catch(error => {
+            console.error('Error buscando categorías:', error);
+            categoryResults.innerHTML = '<div class="p-4 text-center text-red-400">Error al buscar categorías</div>';
+            categoryResults.classList.remove('hidden');
+        });
+    }
+    
+    function displayCategoryResults(categories) {
+        let html = '';
+        categories.forEach(category => {
+            html += `
+                <div class="category-item p-4 hover:bg-white/20 cursor-pointer border-b border-white/10 last:border-b-0"
+                     data-id="${category.id}" 
+                     data-name="${category.name}">
+                    <div class="font-semibold text-white">${category.name}</div>
+                    ${category.contextFreeName && category.contextFreeName !== category.name ? 
+                        `<div class="text-sm text-slate-400">${category.contextFreeName}</div>` : ''}
+                </div>
+            `;
+        });
+        
+        categoryResults.innerHTML = html;
+        categoryResults.classList.remove('hidden');
+        
+        // Agregar event listeners a los items
+        categoryResults.querySelectorAll('.category-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const id = this.dataset.id;
+                const name = this.dataset.name;
+                
+                // Validar que el ID sea numérico
+                if (!id || !id.match(/^\d+$/)) {
+                    console.error('ID de categoría inválido:', id);
+                    alert('Error: ID de categoría inválido. Por favor, selecciona otra categoría.');
+                    return;
+                }
+                
+                categoryIdInput.value = id;
+                categorySearchInput.value = name;
+                categoryResults.classList.add('hidden');
+                
+                console.log('Categoría seleccionada - ID:', id, 'Nombre:', name);
+            });
+        });
+    }
+    
+    // Si hay una categoría seleccionada, mostrarla en el input
+    {% if category_id and category_name %}
+        categorySearchInput.value = '{{ category_name }}';
+    {% endif %}
+</script>
+{% endblock %}
