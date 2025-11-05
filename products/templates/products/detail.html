@@ -184,12 +184,37 @@
             <!-- Price History Chart -->
             {% if product.price_history %}
             <div class="glass-card p-6 animate-slide-up-delay-100">
-                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
-                    <svg class="w-6 h-6 mr-2 text-keepa-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                    </svg>
-                    Historial de Precios
-                </h2>
+                <div class="flex items-center justify-between flex-wrap gap-4 mb-4">
+                    <h2 class="text-2xl font-bold text-white flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-keepa-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                        </svg>
+                        Historial de Precios
+                    </h2>
+                    <div class="flex gap-2 flex-wrap">
+                        <button class="date-filter-btn price-chart-btn active bg-keepa-blue-500/30 border border-keepa-blue-500/50 text-white px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-keepa-blue-500/40 transition-colors" data-range="1m" data-chart="price">
+                            1 Mes
+                        </button>
+                        <button class="date-filter-btn price-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="3m" data-chart="price">
+                            3 Meses
+                        </button>
+                        <button class="date-filter-btn price-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="6m" data-chart="price">
+                            6 Meses
+                        </button>
+                        <button class="date-filter-btn price-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="1y" data-chart="price">
+                            1 Año
+                        </button>
+                        <button class="date-filter-btn price-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="2y" data-chart="price">
+                            2 Años
+                        </button>
+                        <button class="date-filter-btn price-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="3y" data-chart="price">
+                            3 Años
+                        </button>
+                        <button class="date-filter-btn price-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="all" data-chart="price">
+                            Todo
+                        </button>
+                    </div>
+                </div>
                 <div class="bg-white/5 rounded-[40px] p-6" style="height: 400px;">
                     <canvas id="priceChart"></canvas>
                 </div>
@@ -199,12 +224,37 @@
             <!-- Sales Rank History Chart -->
             {% if product.sales_rank_history %}
             <div class="glass-card p-6 animate-slide-up-delay-200">
-                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
-                    <svg class="w-6 h-6 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
-                    Historial de Sales Rank
-                </h2>
+                <div class="flex items-center justify-between flex-wrap gap-4 mb-4">
+                    <h2 class="text-2xl font-bold text-white flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                        Historial de Sales Rank
+                    </h2>
+                    <div class="flex gap-2 flex-wrap">
+                        <button class="date-filter-btn salesrank-chart-btn active bg-purple-500/30 border border-purple-500/50 text-white px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-purple-500/40 transition-colors" data-range="1m" data-chart="salesrank">
+                            1 Mes
+                        </button>
+                        <button class="date-filter-btn salesrank-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="3m" data-chart="salesrank">
+                            3 Meses
+                        </button>
+                        <button class="date-filter-btn salesrank-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="6m" data-chart="salesrank">
+                            6 Meses
+                        </button>
+                        <button class="date-filter-btn salesrank-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="1y" data-chart="salesrank">
+                            1 Año
+                        </button>
+                        <button class="date-filter-btn salesrank-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="2y" data-chart="salesrank">
+                            2 Años
+                        </button>
+                        <button class="date-filter-btn salesrank-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="3y" data-chart="salesrank">
+                            3 Años
+                        </button>
+                        <button class="date-filter-btn salesrank-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="all" data-chart="salesrank">
+                            Todo
+                        </button>
+                    </div>
+                </div>
                 <div class="bg-white/5 rounded-[40px] p-6" style="height: 400px;">
                     <canvas id="salesRankChart"></canvas>
                 </div>
@@ -214,12 +264,37 @@
             <!-- Rating History Chart -->
             {% if product.rating_history %}
             <div class="glass-card p-6 animate-slide-up-delay-300">
-                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
-                    <svg class="w-6 h-6 mr-2 text-keepa-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                    </svg>
-                    Historial de Calificaciones
-                </h2>
+                <div class="flex items-center justify-between flex-wrap gap-4 mb-4">
+                    <h2 class="text-2xl font-bold text-white flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-keepa-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                        </svg>
+                        Historial de Calificaciones
+                    </h2>
+                    <div class="flex gap-2 flex-wrap">
+                        <button class="date-filter-btn rating-chart-btn active bg-keepa-green-500/30 border border-keepa-green-500/50 text-white px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-keepa-green-500/40 transition-colors" data-range="1m" data-chart="rating">
+                            1 Mes
+                        </button>
+                        <button class="date-filter-btn rating-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="3m" data-chart="rating">
+                            3 Meses
+                        </button>
+                        <button class="date-filter-btn rating-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="6m" data-chart="rating">
+                            6 Meses
+                        </button>
+                        <button class="date-filter-btn rating-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="1y" data-chart="rating">
+                            1 Año
+                        </button>
+                        <button class="date-filter-btn rating-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="2y" data-chart="rating">
+                            2 Años
+                        </button>
+                        <button class="date-filter-btn rating-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="3y" data-chart="rating">
+                            3 Años
+                        </button>
+                        <button class="date-filter-btn rating-chart-btn bg-white/10 border border-white/20 text-slate-300 px-4 py-2 rounded-[40px] text-sm font-medium hover:bg-white/20 transition-colors" data-range="all" data-chart="rating">
+                            Todo
+                        </button>
+                    </div>
+                </div>
                 <div class="bg-white/5 rounded-[40px] p-6" style="height: 400px;">
                     <canvas id="ratingChart"></canvas>
                 </div>
@@ -425,6 +500,116 @@
         }
     });
     
+    // Variables globales para almacenar datos originales y gráficas
+    let priceChart = null;
+    let salesRankChart = null;
+    let ratingChart = null;
+    
+    // Datos originales completos
+    let originalPriceHistory = null;
+    let originalSalesRankHistory = null;
+    let originalRatingHistory = null;
+    
+    // Rangos de fechas actuales por gráfico (por defecto: 1 mes)
+    let currentDateRange = {
+        price: '1m',
+        salesrank: '1m',
+        rating: '1m'
+    };
+    
+    // Función para calcular la fecha de corte según el rango
+    function getCutoffDate(range) {
+        const now = new Date();
+        const cutoff = new Date();
+        
+        switch(range) {
+            case '1m':
+                cutoff.setMonth(now.getMonth() - 1);
+                break;
+            case '3m':
+                cutoff.setMonth(now.getMonth() - 3);
+                break;
+            case '6m':
+                cutoff.setMonth(now.getMonth() - 6);
+                break;
+            case '1y':
+                cutoff.setFullYear(now.getFullYear() - 1);
+                break;
+            case '2y':
+                cutoff.setFullYear(now.getFullYear() - 2);
+                break;
+            case '3y':
+                cutoff.setFullYear(now.getFullYear() - 3);
+                break;
+            case 'all':
+                return null; // No hay fecha de corte
+            default:
+                cutoff.setMonth(now.getMonth() - 1);
+        }
+        
+        return cutoff.getTime();
+    }
+    
+    // Función para filtrar datos por rango de fechas
+    function filterDataByDateRange(times, values, formattedTimes, range) {
+        if (range === 'all') {
+            return {
+                times: times || [],
+                values: values || [],
+                formattedTimes: formattedTimes || []
+            };
+        }
+        
+        // Si no hay datos, retornar vacío
+        if (!values || values.length === 0) {
+            return {
+                times: [],
+                values: [],
+                formattedTimes: []
+            };
+        }
+        
+        const cutoff = getCutoffDate(range);
+        const filteredIndices = [];
+        
+        // Usar times si está disponible, sino usar formattedTimes
+        const timeArray = (times && times.length > 0) ? times : formattedTimes;
+        
+        for (let i = 0; i < timeArray.length && i < values.length; i++) {
+            let timestampMs = null;
+            
+            // Intentar parsear el tiempo (puede ser ISO string o timestamp)
+            const timeValue = timeArray[i];
+            
+            if (typeof timeValue === 'string') {
+                // Es un string ISO, parsearlo
+                try {
+                    timestampMs = new Date(timeValue).getTime();
+                } catch (e) {
+                    // Si falla el parsing, intentar usar el índice como fallback
+                    continue;
+                }
+            } else if (typeof timeValue === 'number') {
+                // Es un número, asumir que es un timestamp en minutos desde 1 ene 2011
+                const keepaBaseDate = 1293840000 * 1000; // 1 de enero de 2011 en ms
+                timestampMs = timeValue * 60000 + keepaBaseDate;
+            } else {
+                // Formato desconocido, saltar
+                continue;
+            }
+            
+            if (timestampMs && timestampMs >= cutoff) {
+                filteredIndices.push(i);
+            }
+        }
+        
+        return {
+            times: filteredIndices.map(i => (times && times[i]) ? times[i] : null).filter(t => t !== null),
+            values: filteredIndices.map(i => values[i]),
+            formattedTimes: filteredIndices.map(i => (formattedTimes && formattedTimes[i]) ? formattedTimes[i] : null).filter(t => t !== null)
+        };
+    }
+    
     // Configuración común para todas las gráficas
     const commonChartOptions = {
         responsive: true,
@@ -464,37 +649,169 @@
             }
         }
     };
-
+    
+    // Función para actualizar un gráfico específico según el rango de fechas
+    function updateChart(chartType, range) {
+        currentDateRange[chartType] = range;
+        
+        {% if product.price_history %}
+        if (chartType === 'price' && originalPriceHistory && priceChart) {
+            const newPrices = originalPriceHistory.NEW || {};
+            const amazonPrices = originalPriceHistory.AMAZON || {};
+            const usedPrices = originalPriceHistory.USED || {};
+            
+            // Filtrar datos
+            const filteredNew = filterDataByDateRange(
+                newPrices.times || [],
+                newPrices.prices || [],
+                newPrices.formatted_times || [],
+                range
+            );
+            const filteredAmazon = filterDataByDateRange(
+                amazonPrices.times || [],
+                amazonPrices.prices || [],
+                amazonPrices.formatted_times || [],
+                range
+            );
+            const filteredUsed = filterDataByDateRange(
+                usedPrices.times || [],
+                usedPrices.prices || [],
+                usedPrices.formatted_times || [],
+                range
+            );
+            
+            // Usar las etiquetas del conjunto más largo
+            const labels = filteredNew.formattedTimes.length > filteredAmazon.formattedTimes.length 
+                ? filteredNew.formattedTimes 
+                : filteredAmazon.formattedTimes;
+            
+            // Actualizar datos
+            priceChart.data.labels = labels;
+            priceChart.data.datasets[0].data = filteredNew.values.map(p => p / 100);
+            priceChart.data.datasets[1].data = filteredAmazon.values.map(p => p / 100);
+            priceChart.data.datasets[2].data = filteredUsed.values.map(p => p / 100);
+            
+            // Recalcular rango Y
+            const allPrices = [
+                ...filteredNew.values.map(p => p / 100),
+                ...filteredAmazon.values.map(p => p / 100),
+                ...filteredUsed.values.map(p => p / 100)
+            ].filter(p => p > 0);
+            
+            if (allPrices.length > 0) {
+                const minPrice = Math.min(...allPrices);
+                const maxPrice = Math.max(...allPrices);
+                const priceRange = maxPrice - minPrice;
+                priceChart.options.scales.y.min = Math.max(0, minPrice - (priceRange * 0.1));
+                priceChart.options.scales.y.max = maxPrice + (priceRange * 0.1);
+            }
+            
+            priceChart.update();
+        }
+        {% endif %}
+        
+        {% if product.sales_rank_history %}
+        if (chartType === 'salesrank' && originalSalesRankHistory && salesRankChart) {
+            const filtered = filterDataByDateRange(
+                originalSalesRankHistory.times || [],
+                originalSalesRankHistory.values || [],
+                originalSalesRankHistory.formatted_times || [],
+                range
+            );
+            
+            if (filtered.values.length > 0) {
+                salesRankChart.data.labels = filtered.formattedTimes;
+                salesRankChart.data.datasets[0].data = filtered.values;
+                
+                // Recalcular rango Y
+                const validSalesRanks = filtered.values.filter(s => s > 0);
+                if (validSalesRanks.length > 0) {
+                    const minSalesRank = Math.min(...validSalesRanks);
+                    const maxSalesRank = Math.max(...validSalesRanks);
+                    const salesRankRange = maxSalesRank - minSalesRank;
+                    salesRankChart.options.scales.y.min = Math.max(0, minSalesRank - (salesRankRange * 0.1));
+                    salesRankChart.options.scales.y.max = maxSalesRank + (salesRankRange * 0.1);
+                }
+                
+                salesRankChart.update();
+            }
+        }
+        {% endif %}
+        
+        {% if product.rating_history %}
+        if (chartType === 'rating' && originalRatingHistory && ratingChart) {
+            const filtered = filterDataByDateRange(
+                originalRatingHistory.times || [],
+                originalRatingHistory.values || [],
+                originalRatingHistory.formatted_times || [],
+                range
+            );
+            
+            if (filtered.values.length > 0) {
+                ratingChart.data.labels = filtered.formattedTimes;
+                ratingChart.data.datasets[0].data = filtered.values.map(r => r * 10);
+                
+                ratingChart.update();
+            }
+        }
+        {% endif %}
+    }
+    
     {% if product.price_history %}
     // Gráfica de Precio
     const priceCtx = document.getElementById('priceChart');
-    const priceHistory = {{ price_history_json|safe }};
+    originalPriceHistory = {{ price_history_json|safe }};
     
-    const newPrices = priceHistory.NEW || {};
-    const amazonPrices = priceHistory.AMAZON || {};
-    const usedPrices = priceHistory.USED || {};
+    const newPrices = originalPriceHistory.NEW || {};
+    const amazonPrices = originalPriceHistory.AMAZON || {};
+    const usedPrices = originalPriceHistory.USED || {};
     
-    // Combinar todos los precios para calcular rango
+    // Filtrar datos iniciales (1 mes por defecto)
+    const initialFilteredNew = filterDataByDateRange(
+        newPrices.times || [],
+        newPrices.prices || [],
+        newPrices.formatted_times || [],
+        '1m'
+    );
+    const initialFilteredAmazon = filterDataByDateRange(
+        amazonPrices.times || [],
+        amazonPrices.prices || [],
+        amazonPrices.formatted_times || [],
+        '1m'
+    );
+    const initialFilteredUsed = filterDataByDateRange(
+        usedPrices.times || [],
+        usedPrices.prices || [],
+        usedPrices.formatted_times || [],
+        '1m'
+    );
+    
+    // Usar las etiquetas del conjunto más largo
+    const priceLabels = initialFilteredNew.formattedTimes.length > initialFilteredAmazon.formattedTimes.length 
+        ? initialFilteredNew.formattedTimes 
+        : initialFilteredAmazon.formattedTimes;
+    
+    // Combinar todos los precios filtrados para calcular rango
     const allPrices = [
-        ...(newPrices.prices || []).map(p => p / 100),
-        ...(amazonPrices.prices || []).map(p => p / 100),
-        ...(usedPrices.prices || []).map(p => p / 100)
+        ...initialFilteredNew.values.map(p => p / 100),
+        ...initialFilteredAmazon.values.map(p => p / 100),
+        ...initialFilteredUsed.values.map(p => p / 100)
     ].filter(p => p > 0);
     
-    const minPrice = Math.min(...allPrices);
-    const maxPrice = Math.max(...allPrices);
+    const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
+    const maxPrice = allPrices.length > 0 ? Math.max(...allPrices) : 100;
     const priceRange = maxPrice - minPrice;
     const priceMin = Math.max(0, minPrice - (priceRange * 0.1));
     const priceMax = maxPrice + (priceRange * 0.1);
     
-    new Chart(priceCtx, {
+    priceChart = new Chart(priceCtx, {
         type: 'line',
         data: {
-            labels: newPrices.formatted_times || amazonPrices.formatted_times || [],
+            labels: priceLabels,
             datasets: [
                 {
                     label: 'Precio Nuevo',
-                    data: (newPrices.prices || []).map(p => p / 100),
+                    data: initialFilteredNew.values.map(p => p / 100),
                     borderColor: 'rgb(59, 130, 246)',
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
                     tension: 0.1,
@@ -503,7 +820,7 @@
                 },
                 {
                     label: 'Precio Amazon',
-                    data: (amazonPrices.prices || []).map(p => p / 100),
+                    data: initialFilteredAmazon.values.map(p => p / 100),
                     borderColor: 'rgb(245, 158, 11)',
                     backgroundColor: 'rgba(245, 158, 11, 0.1)',
                     tension: 0.1,
@@ -512,7 +829,7 @@
                 },
                 {
                     label: 'Precio Usado',
-                    data: (usedPrices.prices || []).map(p => p / 100),
+                    data: initialFilteredUsed.values.map(p => p / 100),
                     borderColor: 'rgb(34, 197, 94)',
                     backgroundColor: 'rgba(34, 197, 94, 0.1)',
                     tension: 0.1,
@@ -547,10 +864,18 @@
     {% if product.sales_rank_history %}
     // Gráfica de Sales Rank
     const salesRankCtx = document.getElementById('salesRankChart');
-    const salesRankHistory = {{ sales_rank_history_json|safe }};
+    originalSalesRankHistory = {{ sales_rank_history_json|safe }};
     
-    const salesRankData = salesRankHistory.values || [];
-    const salesRankTimes = salesRankHistory.formatted_times || [];
+    // Filtrar datos iniciales (1 mes por defecto)
+    const initialFilteredSalesRank = filterDataByDateRange(
+        originalSalesRankHistory.times || [],
+        originalSalesRankHistory.values || [],
+        originalSalesRankHistory.formatted_times || [],
+        '1m'
+    );
+    
+    const salesRankData = initialFilteredSalesRank.values || [];
+    const salesRankTimes = initialFilteredSalesRank.formattedTimes || [];
     
     // Calcular rango para Sales Rank (nota: menor es mejor)
     const validSalesRanks = salesRankData.filter(s => s > 0);
@@ -561,7 +886,7 @@
         const salesRankMin = Math.max(0, minSalesRank - (salesRankRange * 0.1));
         const salesRankMax = maxSalesRank + (salesRankRange * 0.1);
         
-        new Chart(salesRankCtx, {
+        salesRankChart = new Chart(salesRankCtx, {
             type: 'line',
             data: {
                 labels: salesRankTimes,
@@ -598,55 +923,209 @@
                 }
             }
         });
+    } else if (originalSalesRankHistory.values && originalSalesRankHistory.values.length > 0) {
+        // Si no hay datos en el último mes, mostrar todos los datos sin filtrar
+        const allSalesRankData = originalSalesRankHistory.values || [];
+        const allSalesRankTimes = originalSalesRankHistory.formatted_times || [];
+        
+        const validSalesRanks = allSalesRankData.filter(s => s > 0);
+        if (validSalesRanks.length > 0) {
+            const minSalesRank = Math.min(...validSalesRanks);
+            const maxSalesRank = Math.max(...validSalesRanks);
+            const salesRankRange = maxSalesRank - minSalesRank;
+            const salesRankMin = Math.max(0, minSalesRank - (salesRankRange * 0.1));
+            const salesRankMax = maxSalesRank + (salesRankRange * 0.1);
+            
+            salesRankChart = new Chart(salesRankCtx, {
+                type: 'line',
+                data: {
+                    labels: allSalesRankTimes,
+                    datasets: [{
+                        label: 'Sales Rank',
+                        data: allSalesRankData,
+                        borderColor: 'rgb(168, 85, 247)',
+                        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                        tension: 0.1,
+                        stepped: 'before',
+                        borderWidth: 2,
+                        fill: true
+                    }]
+                },
+                options: {
+                    ...commonChartOptions,
+                    scales: {
+                        ...commonChartOptions.scales,
+                        y: {
+                            beginAtZero: false,
+                            min: salesRankMin,
+                            max: salesRankMax,
+                            reverse: false,
+                            ticks: {
+                                color: 'rgb(148, 163, 184)',
+                                callback: function(value) {
+                                    return '#' + value.toLocaleString();
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
     }
     {% endif %}
     
     {% if product.rating_history %}
     // Gráfica de Rating
     const ratingCtx = document.getElementById('ratingChart');
-    const ratingHistory = {{ rating_history_json|safe }};
+    originalRatingHistory = {{ rating_history_json|safe }};
     
-    const ratingData = (ratingHistory.values || []).map(r => r * 10);
-    const ratingTimes = ratingHistory.formatted_times || [];
+    // Filtrar datos iniciales (1 mes por defecto)
+    const initialFilteredRating = filterDataByDateRange(
+        originalRatingHistory.times || [],
+        originalRatingHistory.values || [],
+        originalRatingHistory.formatted_times || [],
+        '1m'
+    );
     
-    new Chart(ratingCtx, {
-        type: 'line',
-        data: {
-            labels: ratingTimes,
-            datasets: [{
-                label: 'Calificación',
-                data: ratingData,
-                borderColor: 'rgb(34, 197, 94)',
-                backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                tension: 0.1,
-                stepped: 'before',
-                borderWidth: 2,
-                fill: true
-            }]
-        },
-        options: {
-            ...commonChartOptions,
-            scales: {
-                ...commonChartOptions.scales,
-                y: {
-                    beginAtZero: false,
-                    min: 0,
-                    max: 5,
-                    ticks: {
-                        color: 'rgb(148, 163, 184)',
-                        stepSize: 0.5,
-                        callback: function(value) {
-                            return value.toFixed(1) + ' ⭐';
+    const ratingData = (initialFilteredRating.values || []).map(r => r * 10);
+    const ratingTimes = initialFilteredRating.formattedTimes || [];
+    
+    if (ratingData.length > 0) {
+        ratingChart = new Chart(ratingCtx, {
+            type: 'line',
+            data: {
+                labels: ratingTimes,
+                datasets: [{
+                    label: 'Calificación',
+                    data: ratingData,
+                    borderColor: 'rgb(34, 197, 94)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    tension: 0.1,
+                    stepped: 'before',
+                    borderWidth: 2,
+                    fill: true
+                }]
+            },
+            options: {
+                ...commonChartOptions,
+                scales: {
+                    ...commonChartOptions.scales,
+                    y: {
+                        beginAtZero: false,
+                        min: 0,
+                        max: 5,
+                        ticks: {
+                            color: 'rgb(148, 163, 184)',
+                            stepSize: 0.5,
+                            callback: function(value) {
+                                return value.toFixed(1) + ' ⭐';
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
                         }
-                    },
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
                     }
                 }
             }
-        }
-    });
+        });
+    } else if (originalRatingHistory.values && originalRatingHistory.values.length > 0) {
+        // Si no hay datos en el último mes, mostrar todos los datos sin filtrar
+        const allRatingData = (originalRatingHistory.values || []).map(r => r * 10);
+        const allRatingTimes = originalRatingHistory.formatted_times || [];
+        
+        ratingChart = new Chart(ratingCtx, {
+            type: 'line',
+            data: {
+                labels: allRatingTimes,
+                datasets: [{
+                    label: 'Calificación',
+                    data: allRatingData,
+                    borderColor: 'rgb(34, 197, 94)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    tension: 0.1,
+                    stepped: 'before',
+                    borderWidth: 2,
+                    fill: true
+                }]
+            },
+            options: {
+                ...commonChartOptions,
+                scales: {
+                    ...commonChartOptions.scales,
+                    y: {
+                        beginAtZero: false,
+                        min: 0,
+                        max: 5,
+                        ticks: {
+                            color: 'rgb(148, 163, 184)',
+                            stepSize: 0.5,
+                            callback: function(value) {
+                                return value.toFixed(1) + ' ⭐';
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    }
+                }
+            }
+        });
+    }
     {% endif %}
+    
+    // Función para actualizar el estado visual de los botones de un gráfico específico
+    function updateButtonStyles(chartType, activeButton) {
+        let buttonSelector = '';
+        let activeBgClass = '';
+        let activeBorderClass = '';
+        
+        if (chartType === 'price') {
+            buttonSelector = '.price-chart-btn';
+            activeBgClass = 'bg-keepa-blue-500/30';
+            activeBorderClass = 'border-keepa-blue-500/50';
+        } else if (chartType === 'salesrank') {
+            buttonSelector = '.salesrank-chart-btn';
+            activeBgClass = 'bg-purple-500/30';
+            activeBorderClass = 'border-purple-500/50';
+        } else if (chartType === 'rating') {
+            buttonSelector = '.rating-chart-btn';
+            activeBgClass = 'bg-keepa-green-500/30';
+            activeBorderClass = 'border-keepa-green-500/50';
+        }
+        
+        // Remover clase active de todos los botones del mismo gráfico
+        const chartButtons = document.querySelectorAll(buttonSelector);
+        chartButtons.forEach(btn => {
+            btn.classList.remove('active', activeBgClass, activeBorderClass, 'text-white');
+            btn.classList.add('bg-white/10', 'border-white/20', 'text-slate-300');
+        });
+        
+        // Agregar clase active al botón clickeado
+        activeButton.classList.remove('bg-white/10', 'border-white/20', 'text-slate-300');
+        activeButton.classList.add('active', activeBgClass, activeBorderClass, 'text-white');
+    }
+    
+    // Event listeners para los botones de filtro de fecha
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateFilterButtons = document.querySelectorAll('.date-filter-btn');
+        
+        dateFilterButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Obtener el tipo de gráfico y el rango del atributo data-chart y data-range
+                const chartType = this.getAttribute('data-chart');
+                const range = this.getAttribute('data-range');
+                
+                // Actualizar estilos de botones del gráfico específico
+                updateButtonStyles(chartType, this);
+                
+                // Actualizar solo el gráfico correspondiente
+                updateChart(chartType, range);
+            });
+        });
+    });
 </script>
 {% endblock %}
 
