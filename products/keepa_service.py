@@ -1,5 +1,6 @@
 import keepa
 import logging
+from dataclasses import dataclass
 from django.conf import settings
 from typing import Dict, List, Optional, Any
 from datetime import datetime
@@ -7,8 +8,23 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class RootCategoryDTO:
+    """DTO to represent a root category of Amazon"""
+    cat_id: int
+    name: str
+    context_free_name: str
+    domain_id: int
+    parent: int
+    children: List[int]
+    product_count: int
+    highest_rank: int
+    lowest_rank: int
+    matched: bool
+
+
 class KeepaService:
-    """Servicio para interactuar con la API de Keepa"""
+    """Service to interact with the Keepa API"""
     
     def __init__(self):
         """Inicializa el cliente de Keepa con la API key"""
@@ -825,5 +841,217 @@ class KeepaService:
                 logger.error("La solicitud fue rechazada por Keepa API. Verifica tu token y suscripción.")
             elif "domain" in error_msg.lower():
                 logger.error(f"Error con el dominio '{domain}'. Verifica que sea válido (ej: 'MX', 'US', 'UK', 'DE')")
+            
+            return []
+    
+    def get_root_categories(self, domain: str = 'MX') -> List[RootCategoryDTO]:
+        """
+        Gets the root categories of Amazon for a specific domain
+        
+        Args:
+            domain: Amazon domain ('MX', 'US', 'UK', etc.). Default: 'MX' (Mexico)
+            
+        Returns:
+            List of RootCategoryDTO with the root categories found
+        """
+        try:
+            logger.info(f"Getting root categories for domain: {domain}")
+            
+            # Query root categories using category_lookup(0)
+            # category_id=0 returns all root categories
+            logger.debug(f"Calling api.category_lookup with category_id=0, domain='{domain}'")
+            categories = self.api.category_lookup(0, domain=domain)
+            
+            logger.debug(f"Response from category_lookup: type={type(categories)}, count={len(categories) if categories else 0}")
+            
+            if not categories:
+                logger.warning(f"No root categories found for domain {domain}")
+                return []
+            
+            # Response is a dict where keys are catIds (int) and values are dicts with data
+            if not isinstance(categories, dict):
+                logger.warning(f"Unexpected response type from category_lookup: {type(categories)}")
+                return []
+            
+            # Convert each category to RootCategoryDTO
+            root_categories = []
+            for cat_id, category_data in categories.items():
+                try:
+                    # Validate that category_data is a dictionary
+                    if not isinstance(category_data, dict):
+                        logger.warning(f"Invalid category data for catId {cat_id}: {type(category_data)}")
+                        continue
+                    
+                    # Extract and validate required fields
+                    cat_id_int = int(cat_id) if isinstance(cat_id, (int, str)) else 0
+                    name = category_data.get('name', '')
+                    context_free_name = category_data.get('contextFreeName', '')
+                    domain_id = category_data.get('domainId', 0)
+                    parent = category_data.get('parent', 0)
+                    children = category_data.get('children', [])
+                    product_count = category_data.get('productCount', 0)
+                    highest_rank = category_data.get('highestRank', 0)
+                    lowest_rank = category_data.get('lowestRank', 0)
+                    matched = category_data.get('matched', False)
+                    
+                    # Ensure children is a list
+                    if not isinstance(children, list):
+                        children = []
+                    
+                    # Create DTO
+                    root_category = RootCategoryDTO(
+                        cat_id=cat_id_int,
+                        name=str(name) if name else '',
+                        context_free_name=str(context_free_name) if context_free_name else '',
+                        domain_id=int(domain_id) if domain_id else 0,
+                        parent=int(parent) if parent is not None else 0,
+                        children=[int(c) for c in children if isinstance(c, (int, str)) and str(c).isdigit()],
+                        product_count=int(product_count) if product_count else 0,
+                        highest_rank=int(highest_rank) if highest_rank else 0,
+                        lowest_rank=int(lowest_rank) if lowest_rank else 0,
+                        matched=bool(matched) if matched is not None else False
+                    )
+                    
+                    root_categories.append(root_category)
+                    
+                except (ValueError, TypeError, KeyError) as e:
+                    logger.warning(f"Error processing category {cat_id}: {e}")
+                    continue
+            
+            logger.info(f"Found {len(root_categories)} valid root categories for domain {domain}")
+            return root_categories
+            
+        except Exception as e:
+            error_msg = str(e)
+            import traceback
+            logger.error(f"Error getting root categories for domain {domain}: {error_msg}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            # Provide more specific error messages based on error type
+            if "REQUEST_REJECTED" in error_msg:
+                logger.error("Request was rejected by Keepa API. Verify your token and subscription.")
+            elif "domain" in error_msg.lower():
+                logger.error(f"Error with domain '{domain}'. Verify it's valid (e.g., 'MX', 'US', 'UK', 'DE')")
+            elif "not yet available" in error_msg.lower() or "no match found" in error_msg.lower():
+                logger.warning(f"No root categories available for domain {domain}")
+            
+            return []
+    
+    def get_category_children(self, category_id: int, domain: str = 'MX') -> List[RootCategoryDTO]:
+        """
+        Gets the child categories of a specific category
+        
+        Args:
+            category_id: ID of the parent category to get children from
+            domain: Amazon domain ('MX', 'US', 'UK', etc.). Default: 'MX' (Mexico)
+            
+        Returns:
+            List of RootCategoryDTO with the child categories found
+        """
+        try:
+            logger.info(f"Getting child categories for category ID {category_id} in domain: {domain}")
+            
+            # Validate category_id
+            if not category_id or category_id <= 0:
+                logger.error(f"Invalid category_id: {category_id}. Must be a positive integer")
+                return []
+            
+            # Query child categories using category_lookup with specific category_id
+            logger.debug(f"Calling api.category_lookup with category_id={category_id}, domain='{domain}'")
+            category_response = self.api.category_lookup(category_id, domain=domain)
+            
+            logger.debug(f"Response from category_lookup: type={type(category_response)}, count={len(category_response) if category_response else 0}")
+            
+            if not category_response:
+                logger.warning(f"No category found for ID {category_id} in domain {domain}")
+                return []
+            
+            # Response is a dict where keys are catIds (int) and values are dicts with data
+            if not isinstance(category_response, dict):
+                logger.warning(f"Unexpected response type from category_lookup: {type(category_response)}")
+                return []
+            
+            # Get the parent category data
+            parent_category = category_response.get(category_id)
+            if not parent_category:
+                logger.warning(f"Category {category_id} not found in response")
+                return []
+            
+            # Extract children IDs from parent category
+            children_ids = parent_category.get('children', [])
+            if not children_ids or not isinstance(children_ids, list):
+                logger.info(f"Category {category_id} has no child categories")
+                return []
+            
+            # Get detailed information for each child category
+            child_categories = []
+            for child_id in children_ids:
+                try:
+                    child_data = category_response.get(child_id)
+                    if not child_data or not isinstance(child_data, dict):
+                        # If child not in response, query it separately
+                        logger.debug(f"Child category {child_id} not in response, querying separately")
+                        child_response = self.api.category_lookup(child_id, domain=domain)
+                        if child_response and isinstance(child_response, dict):
+                            child_data = child_response.get(child_id)
+                        
+                        if not child_data:
+                            logger.warning(f"Could not retrieve data for child category {child_id}")
+                            continue
+                    
+                    # Extract and validate required fields
+                    cat_id_int = int(child_id) if isinstance(child_id, (int, str)) else 0
+                    name = child_data.get('name', '')
+                    context_free_name = child_data.get('contextFreeName', '')
+                    domain_id = child_data.get('domainId', 0)
+                    parent = child_data.get('parent', category_id)
+                    children = child_data.get('children', [])
+                    product_count = child_data.get('productCount', 0)
+                    highest_rank = child_data.get('highestRank', 0)
+                    lowest_rank = child_data.get('lowestRank', 0)
+                    matched = child_data.get('matched', False)
+                    
+                    # Ensure children is a list
+                    if not isinstance(children, list):
+                        children = []
+                    
+                    # Create DTO
+                    child_category = RootCategoryDTO(
+                        cat_id=cat_id_int,
+                        name=str(name) if name else '',
+                        context_free_name=str(context_free_name) if context_free_name else '',
+                        domain_id=int(domain_id) if domain_id else 0,
+                        parent=int(parent) if parent is not None else category_id,
+                        children=[int(c) for c in children if isinstance(c, (int, str)) and str(c).isdigit()],
+                        product_count=int(product_count) if product_count else 0,
+                        highest_rank=int(highest_rank) if highest_rank else 0,
+                        lowest_rank=int(lowest_rank) if lowest_rank else 0,
+                        matched=bool(matched) if matched is not None else False
+                    )
+                    
+                    child_categories.append(child_category)
+                    
+                except (ValueError, TypeError, KeyError) as e:
+                    logger.warning(f"Error processing child category {child_id}: {e}")
+                    continue
+            
+            logger.info(f"Found {len(child_categories)} child categories for category {category_id} in domain {domain}")
+            return child_categories
+            
+        except Exception as e:
+            error_msg = str(e)
+            import traceback
+            logger.error(f"Error getting child categories for category {category_id} in domain {domain}: {error_msg}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            # Provide more specific error messages based on error type
+            if "REQUEST_REJECTED" in error_msg:
+                logger.error("Request was rejected by Keepa API. Verify your token and subscription.")
+            elif "domain" in error_msg.lower():
+                logger.error(f"Error with domain '{domain}'. Verify it's valid (e.g., 'MX', 'US', 'UK', 'DE')")
+            elif "not yet available" in error_msg.lower() or "no match found" in error_msg.lower():
+                logger.warning(f"No child categories available for category {category_id} in domain {domain}")
+            elif "INVALID_CATEGORY" in error_msg or "CATEGORY_NOT_FOUND" in error_msg:
+                logger.error(f"Invalid or not found category: {category_id}")
             
             return []

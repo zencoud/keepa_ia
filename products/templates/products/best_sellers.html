@@ -134,12 +134,28 @@
             
             {% if products %}
                 <div class="glass-card glass-card-hover mb-6 p-6">
-                    <h3 class="text-2xl font-bold text-gradient mb-2">
-                        Best Sellers{% if category_name %}: {{ category_name }}{% endif %}
-                    </h3>
-                    <p class="text-slate-400">
-                        Mostrando {{ page_obj.start_index }} - {{ page_obj.end_index }} de {{ page_obj.paginator.count }} productos
-                    </p>
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h3 class="text-2xl font-bold text-gradient mb-2">
+                                Best Sellers{% if category_name %}: {{ category_name }}{% endif %}
+                            </h3>
+                            <p class="text-slate-400">
+                                Mostrando {{ page_obj.start_index }} - {{ page_obj.end_index }} de {{ page_obj.paginator.count }} productos
+                            </p>
+                        </div>
+                        
+                        <!-- Selector de perpage -->
+                        <div class="flex items-center gap-2">
+                            <label for="perpage" class="text-sm text-slate-300">Productos por página:</label>
+                            <select id="perpage" name="perpage" 
+                                    onchange="changePerPage(this.value)"
+                                    class="form-input bg-white/10 border-white/20 text-white px-3 py-2 rounded-[40px] focus:ring-2 focus:ring-keepa-blue-500 focus:border-keepa-blue-500">
+                                <option value="20" {% if perpage == 20 %}selected{% endif %}>20</option>
+                                <option value="50" {% if perpage == 50 %}selected{% endif %}>50</option>
+                                <option value="100" {% if perpage == 100 %}selected{% endif %}>100</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Products Grid -->
@@ -422,6 +438,14 @@
         
         // Redirigir directamente - la vista se encargará del fetch automático
         window.location.href = detailUrl;
+    }
+
+    // Función para cambiar el número de productos por página
+    function changePerPage(value) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('perpage', value);
+        url.searchParams.set('page', '1'); // Resetear a la primera página
+        window.location.href = url.toString();
     }
 </script>
 {% endblock %}

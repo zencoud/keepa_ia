@@ -29,15 +29,15 @@ class Pagination(component.Component):
             urls['first'] = '?' + urlencode(params_first)
             
             # Página anterior
-            if page_obj.has_previous:
+            if page_obj.has_previous():
                 params_prev = base_params.copy()
-                params_prev['page'] = page_obj.previous_page_number
+                params_prev['page'] = page_obj.previous_page_number()
                 urls['previous'] = '?' + urlencode(params_prev)
             
             # Página siguiente
-            if page_obj.has_next:
+            if page_obj.has_next():
                 params_next = base_params.copy()
-                params_next['page'] = page_obj.next_page_number
+                params_next['page'] = page_obj.next_page_number()
                 urls['next'] = '?' + urlencode(params_next)
             
             # Última página

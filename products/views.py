@@ -11,7 +11,7 @@ from io import StringIO
 from typing import Dict, Any, Optional
 import json
 from .models import Product, PriceAlert, Notification, BestSellerSearch
-from .keepa_service import KeepaService
+from .keepa_service import KeepaService, RootCategoryDTO
 from .openai_service import OpenAIService
 from .document_generator import DocumentGenerator
 from .notifications import create_system_notification, get_user_unread_notifications_count
@@ -1464,6 +1464,14 @@ def best_sellers_view(request):
         category_search = request.GET.get('category_search', '').strip()  # Nombre de búsqueda para contexto
         page_number = request.GET.get('page', 1)
         
+        # Obtener perpage con valor por defecto de 20
+        try:
+            perpage = int(request.GET.get('perpage', 20))
+            # Limitar perpage a un máximo razonable (ej: 100)
+            perpage = min(max(perpage, 1), 100)
+        except (ValueError, TypeError):
+            perpage = 20
+        
         # Si se ingresó un ID directamente, usarlo (tiene prioridad sobre category_id del hidden input)
         if category_id_direct and category_id_direct.isdigit():
             category_id = category_id_direct
@@ -1749,16 +1757,20 @@ def best_sellers_view(request):
             extra_pagination_params['category_id'] = category_id
         if category_search:
             extra_pagination_params['category_search'] = category_search
+        # Agregar perpage a los parámetros de paginación
+        if perpage != 20:  # Solo agregar si no es el valor por defecto
+            extra_pagination_params['perpage'] = perpage
         
         context = {
             'category_id': category_id,
             'category_search': category_search,  # Para pre-llenar el input
             'category_name': category_name,
             'page_obj': page_obj,
-            'products': page_obj if page_obj else [],
+            'products': page_obj.object_list if page_obj else [],
             'breadcrumbs': breadcrumbs,
             'recent_searches': recent_searches,
             'extra_pagination_params': extra_pagination_params,
+            'perpage': perpage,  # Agregar perpage al contexto
         }
         
         return render(request, 'products/best_sellers.html', context)
@@ -1928,3 +1940,175 @@ def best_sellers_api_view(request):
             'success': False,
             'error': 'Error procesando la solicitud'
         }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def categories_list_view(request):
+    """
+    View to list root categories from Amazon
+    GET: Shows a paginated list of root categories
+    """
+    try:
+        # Force domain to MX (fixed)
+        domain = 'MX'
+        page_number = request.GET.get('page', 1)
+        
+        # Get perpage with default value of 20
+        try:
+            perpage = int(request.GET.get('perpage', 20))
+            perpage = min(max(perpage, 1), 100)
+        except (ValueError, TypeError):
+            perpage = 20
+        
+        try:
+            keepa_service = KeepaService()
+            root_categories = keepa_service.get_root_categories(domain=domain)
+            
+            if not root_categories:
+                messages.info(request, 'No root categories found.')
+            
+            # Paginate categories
+            paginator = Paginator(root_categories, perpage)
+            try:
+                page_obj = paginator.page(page_number)
+            except:
+                page_obj = paginator.page(1)
+            
+            # Breadcrumbs
+            breadcrumbs = [
+                {'text': 'Inicio', 'url': '/dashboard/'},
+                {'text': 'Productos', 'url': '/products/list/'},
+                {'text': 'Categorías'},
+            ]
+            
+            # Extra pagination params (domain is always MX, so we don't include it)
+            extra_pagination_params = {}
+            if perpage != 20:  # Only add if not default
+                extra_pagination_params['perpage'] = perpage
+            
+            context = {
+                'breadcrumbs': breadcrumbs,
+                'categories': page_obj,
+                'page_obj': page_obj,
+                'domain': domain,
+                'perpage': perpage,
+                'extra_pagination_params': extra_pagination_params,
+            }
+            
+            return render(request, 'products/categories_list.html', context)
+            
+        except ValueError as e:
+            logger.error(f"Keepa configuration error: {e}")
+            messages.error(request, 'System configuration error. Please contact the administrator.')
+            return redirect('products:list')
+            
+    except Exception as e:
+        logger.error(f"Error in categories_list_view: {e}")
+        messages.error(request, 'Error loading categories. Please try again.')
+        return redirect('products:list')
+
+
+@login_required
+@require_http_methods(["GET"])
+def category_children_view(request, category_id):
+    """
+    View to list child categories of a specific category
+    GET: Shows a paginated list of child categories
+    """
+    try:
+        # Force domain to MX (fixed)
+        domain = 'MX'
+        page_number = request.GET.get('page', 1)
+        
+        # Get perpage with default value of 20
+        try:
+            perpage = int(request.GET.get('perpage', 20))
+            perpage = min(max(perpage, 1), 100)
+        except (ValueError, TypeError):
+            perpage = 20
+        
+        try:
+            keepa_service = KeepaService()
+            
+            # Get child categories
+            child_categories = keepa_service.get_category_children(category_id, domain=domain)
+            
+            # Get parent category info for context
+            root_categories = keepa_service.get_root_categories(domain=domain)
+            parent_category = None
+            for cat in root_categories:
+                if cat.cat_id == category_id:
+                    parent_category = cat
+                    break
+            
+            # If not found in root, try to get it from category_lookup
+            if not parent_category:
+                try:
+                    category_response = keepa_service.api.category_lookup(category_id, domain=domain)
+                    if category_response and isinstance(category_response, dict):
+                        parent_data = category_response.get(category_id)
+                        if parent_data:
+                            parent_category = RootCategoryDTO(
+                                cat_id=category_id,
+                                name=parent_data.get('name', f'Category {category_id}'),
+                                context_free_name=parent_data.get('contextFreeName', ''),
+                                domain_id=parent_data.get('domainId', 0),
+                                parent=parent_data.get('parent', 0),
+                                children=parent_data.get('children', []),
+                                product_count=parent_data.get('productCount', 0),
+                                highest_rank=parent_data.get('highestRank', 0),
+                                lowest_rank=parent_data.get('lowestRank', 0),
+                                matched=parent_data.get('matched', False)
+                            )
+                except:
+                    pass
+            
+            if not child_categories:
+                messages.info(request, f'No child categories found for category {category_id}.')
+            
+            # Paginate categories
+            paginator = Paginator(child_categories, perpage)
+            try:
+                page_obj = paginator.page(page_number)
+            except:
+                page_obj = paginator.page(1)
+            
+            # Breadcrumbs
+            breadcrumbs = [
+                {'text': 'Inicio', 'url': '/dashboard/'},
+                {'text': 'Productos', 'url': '/products/list/'},
+                {'text': 'Categorías', 'url': '/products/categories/'},
+            ]
+            if parent_category:
+                breadcrumbs.append({'text': parent_category.name})
+            else:
+                breadcrumbs.append({'text': f'Category {category_id}'})
+            
+            # Extra pagination params (domain is always MX, so we don't include it)
+            extra_pagination_params = {}
+            if perpage != 20:  # Only add if not default
+                extra_pagination_params['perpage'] = perpage
+            
+            context = {
+                'breadcrumbs': breadcrumbs,
+                'categories': page_obj,
+                'page_obj': page_obj,
+                'parent_category': parent_category,
+                'category_id': category_id,
+                'domain': domain,
+                'perpage': perpage,
+                'extra_pagination_params': extra_pagination_params,
+            }
+            
+            return render(request, 'products/category_children.html', context)
+            
+        except ValueError as e:
+            logger.error(f"Keepa configuration error: {e}")
+            messages.error(request, 'System configuration error. Please contact the administrator.')
+            return redirect('products:categories_list')
+            
+    except Exception as e:
+        logger.error(f"Error in category_children_view: {e}")
+        messages.error(request, 'Error loading child categories. Please try again.')
+        return redirect('products:categories_list')

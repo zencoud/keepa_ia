@@ -1,0 +1,33 @@
+# Cursor Rules
+
+## Documentation and Code Standards
+
+- All code must be well-documented with clear docstrings
+- All comments and documentation must be in English (universal language)
+- Use type hints for all function parameters and return values
+- Follow Python PEP 8 style guidelines
+- Include comprehensive error handling and logging
+
+## Documentation Requirements
+
+- Functions and classes must have docstrings following Google or NumPy style
+- Inline comments should explain "why" not "what" (code should be self-explanatory)
+- Complex logic must be documented with clear comments
+- All public APIs must have complete type hints
+
+## Code Quality
+
+- Use descriptive variable names
+- Keep functions focused and single-purpose
+- Handle edge cases and errors gracefully
+- Use appropriate logging levels (debug, info, warning, error)
+
+## Language
+
+- Code comments: English
+- Docstrings: English
+- Variable names: English
+- Function names: English
+- Error messages: English (for technical logs)
+- User-facing strings: Can be localized as needed
+

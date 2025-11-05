@@ -16,12 +16,20 @@
         <!-- List Header -->
         <div class="glass-card glass-card-hover mb-8 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h2 class="text-3xl font-bold text-gradient">Productos Consultados ({{ page_obj.paginator.count }})</h2>
-            <a href="{% url 'products:search' %}" class="btn-primary flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                Buscar Nuevo Producto
-            </a>
+            <div class="flex flex-wrap gap-2">
+                <a href="{% url 'products:categories_list' %}" class="btn-secondary flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                    Ver Categorías
+                </a>
+                <a href="{% url 'products:search' %}" class="btn-primary flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Buscar Nuevo Producto
+                </a>
+            </div>
         </div>
 
         <!-- Products Grid -->

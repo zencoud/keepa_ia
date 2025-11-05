@@ -27,8 +27,12 @@ urlpatterns = [
     path('generate-ai-summary/<str:asin>/', views.generate_ai_summary_view, name='generate_ai_summary'),
     path('generate-document/', views.generate_document_view, name='generate_document'),
     
-    # Best Sellers
+    # Categories
+    path('categories/', views.categories_list_view, name='categories_list'),
+    path('categories/<int:category_id>/', views.category_children_view, name='category_children'),
     path('categories/search/', views.search_categories_view, name='search_categories'),
+    
+    # Best Sellers
     path('bestsellers/', views.best_sellers_view, name='best_sellers'),
     path('bestsellers/api/', views.best_sellers_api_view, name='best_sellers_api'),
     path('bestsellers/clear-history/', views.clear_search_history_view, name='clear_search_history'),

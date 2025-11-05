@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% load static %}
+{% load messages_tags %}
+{% load humanize %}
+
+{% block title %}Categories - Keepa IA{% endblock %}
+
+{% block content %}
+<!-- Header -->
+{% component "header" %}{% endcomponent %}
+
+<!-- Main Content -->
+<main class="min-h-screen pb-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Breadcrumbs -->
+        {% component "breadcrumbs" items=breadcrumbs %}{% endcomponent %}
+        
+        <!-- Messages -->
+        {% render_flash_messages %}
+        
+        <!-- Header Card -->
+        <div class="glass-card glass-card-hover glass-card mb-8 p-8 animate-fade-in">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h2 class="text-3xl font-bold text-gradient mb-2">Amazon Categories</h2>
+                    <p class="text-slate-400">
+                        Browse root categories from Amazon Mexico
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Categories List -->
+        {% if categories %}
+            <div class="glass-card glass-card-hover mb-6 p-6">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gradient mb-2">
+                            Root Categories
+                        </h3>
+                        <p class="text-slate-400">
+                            Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} categories
+                        </p>
+                    </div>
+                    
+                    <!-- View Toggle and Perpage Selector -->
+                    <div class="flex items-center gap-4 flex-wrap">
+                        <!-- View Toggle -->
+                        <div class="flex items-center gap-2 bg-white/10 rounded-[40px] p-1">
+                            <button id="viewCardBtn" class="view-toggle-btn px-4 py-2 rounded-[40px] text-sm font-medium transition-all" data-view="card">
+                                <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                                </svg>
+                                Cards
+                            </button>
+                            <button id="viewTableBtn" class="view-toggle-btn px-4 py-2 rounded-[40px] text-sm font-medium transition-all" data-view="table">
+                                <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                Table
+                            </button>
+                        </div>
+                        
+                        <!-- Perpage Selector -->
+                        <div class="flex items-center gap-2">
+                            <label for="perpage" class="text-sm text-slate-300">Categories per page:</label>
+                            <select id="perpage" name="perpage" 
+                                    onchange="changePerPage(this.value)"
+                                    class="form-input bg-white/10 border-white/20 text-white px-3 py-2 rounded-[40px] focus:ring-2 focus:ring-keepa-blue-500 focus:border-keepa-blue-500">
+                                <option value="20" {% if perpage == 20 %}selected{% endif %}>20</option>
+                                <option value="50" {% if perpage == 50 %}selected{% endif %}>50</option>
+                                <option value="100" {% if perpage == 100 %}selected{% endif %}>100</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Categories Grid (Card View) -->
+            <div id="cardView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                {% for category in categories %}
+                    <div class="glass-card glass-card-hover p-6 hover:scale-105 transition-transform duration-200">
+                        <!-- Category Info -->
+                        <h4 class="text-lg font-bold text-white mb-2 line-clamp-2">
+                            {{ category.name }}
+                        </h4>
+                        
+                        {% if category.context_free_name and category.context_free_name != category.name %}
+                            <p class="text-sm text-slate-400 mb-3">
+                                {{ category.context_free_name }}
+                            </p>
+                        {% endif %}
+                        
+                        <div class="space-y-2 mb-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-slate-400">Category ID:</span>
+                                <span class="text-sm font-mono text-keepa-blue-400">{{ category.cat_id }}</span>
+                            </div>
+                            
+                            {% if category.product_count %}
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-slate-400">Products:</span>
+                                    <span class="text-sm font-bold text-white">{{ category.product_count|intcomma }}</span>
+                                </div>
+                            {% endif %}
+                            
+                            {% if category.children %}
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-slate-400">Subcategories:</span>
+                                    <span class="text-sm font-bold text-keepa-green-400">{{ category.children|length }}</span>
+                                </div>
+                            {% endif %}
+                            
+                            {% if category.highest_rank %}
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-slate-400">Highest Rank:</span>
+                                    <span class="text-sm text-white">#{{ category.highest_rank|intcomma }}</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="flex flex-col gap-2">
+                            {% if category.children %}
+                                <a href="{% url 'products:category_children' category_id=category.cat_id %}" 
+                                   class="btn-primary w-full text-center py-2 text-sm mb-4">
+                                    <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                    View Subcategories
+                                </a>
+                            {% endif %}
+                            
+                            <a href="{% url 'products:best_sellers' %}?category_id={{ category.cat_id }}" 
+                               class="btn-secondary w-full text-center py-2 text-sm">
+                                <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                Best Sellers
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Categories Table (Table View) -->
+            <div id="tableView" class="hidden mb-8">
+                <div class="glass-card overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b border-white/20">
+                                <th class="text-left py-4 px-6 text-sm font-semibold text-white">Name</th>
+                                <th class="text-left py-4 px-6 text-sm font-semibold text-white">Category ID</th>
+                                <th class="text-center py-4 px-6 text-sm font-semibold text-white">Products</th>
+                                <th class="text-center py-4 px-6 text-sm font-semibold text-white">Subcategories</th>
+                                <th class="text-center py-4 px-6 text-sm font-semibold text-white">Highest Rank</th>
+                                <th class="text-center py-4 px-6 text-sm font-semibold text-white">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for category in categories %}
+                                <tr class="border-b border-white/10 hover:bg-white/5 transition-colors">
+                                    <td class="py-4 px-6">
+                                        <div>
+                                            <div class="font-semibold text-white">{{ category.name }}</div>
+                                            {% if category.context_free_name and category.context_free_name != category.name %}
+                                                <div class="text-sm text-slate-400">{{ category.context_free_name }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="py-4 px-6">
+                                        <span class="font-mono text-keepa-blue-400 text-sm">{{ category.cat_id }}</span>
+                                    </td>
+                                    <td class="py-4 px-6 text-center">
+                                        {% if category.product_count %}
+                                            <span class="text-white font-semibold">{{ category.product_count|intcomma }}</span>
+                                        {% else %}
+                                            <span class="text-slate-500">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-4 px-6 text-center">
+                                        {% if category.children %}
+                                            <span class="text-keepa-green-400 font-semibold">{{ category.children|length }}</span>
+                                        {% else %}
+                                            <span class="text-slate-500">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-4 px-6 text-center">
+                                        {% if category.highest_rank %}
+                                            <span class="text-white">#{{ category.highest_rank|intcomma }}</span>
+                                        {% else %}
+                                            <span class="text-slate-500">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-4 px-6">
+                                        <div class="flex gap-2 justify-center">
+                                            {% if category.children %}
+                                                <a href="{% url 'products:category_children' category_id=category.cat_id %}" 
+                                                   class="btn-primary text-xs px-3 py-1.5">
+                                                    <svg class="w-3 h-3 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                                    </svg>
+                                                    Subcategories
+                                                </a>
+                                            {% endif %}
+                                            <a href="{% url 'products:best_sellers' %}?category_id={{ category.cat_id }}" 
+                                               class="btn-secondary text-xs px-3 py-1.5">
+                                                <svg class="w-3 h-3 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                                </svg>
+                                                Best Sellers
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            {% component "pagination" page_obj=page_obj extra_params=extra_pagination_params %}{% endcomponent %}
+        {% else %}
+            {% component "empty_state" 
+                icon="📁"
+                title="No categories found"
+                message="No root categories found for the selected domain. Try selecting a different domain."
+                action_url="{% url 'products:categories_list' %}"
+                action_text="Reload Categories"
+            %}{% endcomponent %}
+        {% endif %}
+    </div>
+</main>
+
+<!-- Footer -->
+{% component "footer" %}{% endcomponent %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // View mode management
+    const VIEW_KEY = 'categories_view_mode';
+    const cardView = document.getElementById('cardView');
+    const tableView = document.getElementById('tableView');
+    const cardBtn = document.getElementById('viewCardBtn');
+    const tableBtn = document.getElementById('viewTableBtn');
+    
+    // Load saved view preference
+    const savedView = localStorage.getItem(VIEW_KEY) || 'card';
+    setView(savedView);
+    
+    // View toggle buttons
+    if (cardBtn && tableBtn) {
+        cardBtn.addEventListener('click', () => setView('card'));
+        tableBtn.addEventListener('click', () => setView('table'));
+    }
+    
+    function setView(view) {
+        if (view === 'card') {
+            cardView.classList.remove('hidden');
+            tableView.classList.add('hidden');
+            cardBtn.classList.add('bg-keepa-blue-500', 'text-white');
+            cardBtn.classList.remove('text-slate-300', 'hover:text-white');
+            tableBtn.classList.remove('bg-keepa-blue-500', 'text-white');
+            tableBtn.classList.add('text-slate-300', 'hover:text-white');
+        } else {
+            cardView.classList.add('hidden');
+            tableView.classList.remove('hidden');
+            tableBtn.classList.add('bg-keepa-blue-500', 'text-white');
+            tableBtn.classList.remove('text-slate-300', 'hover:text-white');
+            cardBtn.classList.remove('bg-keepa-blue-500', 'text-white');
+            cardBtn.classList.add('text-slate-300', 'hover:text-white');
+        }
+        localStorage.setItem(VIEW_KEY, view);
+    }
+    
+    // Function to change per page
+    function changePerPage(value) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('perpage', value);
+        url.searchParams.set('page', '1'); // Reset to first page
+        window.location.href = url.toString();
+    }
+</script>
+{% endblock %}
+
