@@ -9,7 +9,7 @@ from django.utils import timezone
 from datetime import timedelta, datetime
 from io import StringIO
 import json
-from .models import Product, PriceAlert, Notification
+from .models import Product, PriceAlert, Notification, BestSellerSearch
 from .keepa_service import KeepaService
 from .openai_service import OpenAIService
 from .document_generator import DocumentGenerator
@@ -143,8 +143,68 @@ def search_product_view(request):
 def product_detail_view(request, asin):
     """
     Vista para mostrar los detalles de un producto
+    Si el producto no existe en la BD, intenta obtenerlo de Keepa API automáticamente
     """
-    product = get_object_or_404(Product, asin=asin)
+    asin = asin.upper().strip()
+    
+    # Intentar obtener el producto de la BD
+    try:
+        product = Product.objects.get(asin=asin)
+    except Product.DoesNotExist:
+        # El producto no existe, intentar obtenerlo de Keepa API
+        logger.info(f"Producto {asin} no encontrado en BD, intentando obtenerlo de Keepa API")
+        
+        try:
+            keepa_service = KeepaService()
+            product_data = keepa_service.query_product(asin)
+            
+            if not product_data or not product_data.get('asin'):
+                logger.warning(f"No se pudo obtener el producto {asin} de Keepa API")
+                from django.http import Http404
+                raise Http404(f"Producto con ASIN {asin} no encontrado")
+            
+            # Guardar el producto en la BD
+            try:
+                with transaction.atomic():
+                    product = Product.objects.create(
+                        asin=product_data['asin'],
+                        title=product_data['title'],
+                        brand=product_data.get('brand'),
+                        image_url=product_data.get('image_url'),
+                        color=product_data.get('color'),
+                        binding=product_data.get('binding'),
+                        availability_amazon=product_data.get('availability_amazon', 0),
+                        categories=product_data.get('categories', []),
+                        category_tree=product_data.get('category_tree', []),
+                        current_price_new=product_data.get('current_price_new'),
+                        current_price_amazon=product_data.get('current_price_amazon'),
+                        current_price_used=product_data.get('current_price_used'),
+                        sales_rank_current=product_data.get('sales_rank_current'),
+                        rating=product_data.get('rating'),
+                        review_count=product_data.get('review_count'),
+                        price_history=product_data.get('price_history', {}),
+                        rating_history=product_data.get('rating_history', {}),
+                        sales_rank_history=product_data.get('sales_rank_history', {}),
+                        reviews_data=product_data.get('reviews_data', {}),
+                        queried_by=request.user
+                    )
+                    messages.success(request, f'Producto {asin} obtenido exitosamente.')
+                    logger.info(f"Producto {asin} guardado en BD exitosamente")
+            except Exception as db_error:
+                logger.error(f"Error guardando producto {asin} en BD después de obtenerlo de Keepa: {db_error}")
+                # Aún así intentar mostrar el producto con los datos obtenidos
+                # Crear un objeto producto temporal para el template
+                from django.http import Http404
+                raise Http404(f"No se pudo guardar el producto {asin} en la base de datos")
+                
+        except ValueError as e:
+            logger.error(f"Error de configuración Keepa al obtener producto {asin}: {e}")
+            from django.http import Http404
+            raise Http404(f"Error de configuración al obtener el producto {asin}")
+        except Exception as e:
+            logger.error(f"Error obteniendo producto {asin} de Keepa API: {e}")
+            from django.http import Http404
+            raise Http404(f"Producto con ASIN {asin} no encontrado")
     
     # Breadcrumbs
     breadcrumbs = [
@@ -981,6 +1041,9 @@ def search_categories_view(request):
             keepa_service = KeepaService()
             categories = keepa_service.search_categories(query)
             
+            # Limitar resultados a 10
+            categories = categories[:10]
+            
             return JsonResponse({
                 'success': True,
                 'categories': categories,
@@ -1010,11 +1073,12 @@ def best_sellers_view(request):
     """
     try:
         category_id = request.GET.get('category_id', '').strip()
+        category_search = request.GET.get('category_search', '').strip()  # Nombre de búsqueda para contexto
         page_number = request.GET.get('page', 1)
         
-        logger.info(f"best_sellers_view - category_id recibido: '{category_id}'")
+        logger.info(f"best_sellers_view - category_id recibido: '{category_id}', category_search: '{category_search}'")
         
-        category_name = None
+        category_name = category_search or None  # Usar category_search si está disponible
         products_data = []
         paginator = None
         page_obj = None
@@ -1133,6 +1197,35 @@ def best_sellers_view(request):
                         except:
                             page_obj = paginator.page(1)
                         
+                        # Guardar la búsqueda en el historial
+                        # Solo guardar si hay resultados o si es una búsqueda válida
+                        if category_id and category_search:
+                            try:
+                                # Evitar duplicados consecutivos del mismo usuario con la misma categoría
+                                last_search = BestSellerSearch.objects.filter(
+                                    user=request.user,
+                                    category_id=category_id
+                                ).first()
+                                
+                                # Solo guardar si no es un duplicado reciente (últimos 5 minutos)
+                                should_save = True
+                                if last_search:
+                                    time_diff = timezone.now() - last_search.created_at
+                                    if time_diff.total_seconds() < 300:  # 5 minutos
+                                        should_save = False
+                                
+                                if should_save:
+                                    BestSellerSearch.objects.create(
+                                        user=request.user,
+                                        category_id=category_id,
+                                        category_search=category_search,
+                                        category_name=category_name
+                                    )
+                                    logger.info(f"Búsqueda de best sellers guardada en historial: {category_search} ({category_id})")
+                            except Exception as e:
+                                # No fallar si hay error al guardar el historial
+                                logger.warning(f"Error guardando búsqueda en historial: {e}")
+                        
                 except ValueError as e:
                     messages.error(request, 'Error de configuración del sistema. Por favor, contacta al administrador.')
                     logger.error(f"Error de configuración Keepa: {e}", exc_info=True)
@@ -1156,19 +1249,35 @@ def best_sellers_view(request):
         if category_name:
             breadcrumbs.append({'text': category_name})
         
+        # Obtener las últimas búsquedas del usuario (máximo 10)
+        # Envolver en try-except por si la tabla aún no existe o hay algún error
+        recent_searches = []
+        try:
+            recent_searches = BestSellerSearch.objects.filter(
+                user=request.user
+            ).order_by('-created_at')[:10]
+        except Exception as e:
+            # Si hay error (tabla no existe, etc.), simplemente usar lista vacía
+            logger.warning(f"Error obteniendo búsquedas recientes: {e}")
+            recent_searches = []
+        
         context = {
             'category_id': category_id,
+            'category_search': category_search,  # Para pre-llenar el input
             'category_name': category_name,
             'page_obj': page_obj,
             'products': page_obj if page_obj else [],
             'breadcrumbs': breadcrumbs,
+            'recent_searches': recent_searches,
         }
         
         return render(request, 'products/best_sellers.html', context)
         
     except Exception as e:
+        import traceback
         logger.error(f"Error en best_sellers_view: {e}")
-        messages.error(request, 'Error procesando la solicitud.')
+        logger.error(f"Traceback completo: {traceback.format_exc()}")
+        messages.error(request, f'Error procesando la solicitud: {str(e)[:100]}')
         return redirect('products:list')
 
 

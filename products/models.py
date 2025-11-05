@@ -344,3 +344,53 @@ class Notification(models.Model):
             'warning': '⚠️',
         }
         return icons.get(self.notification_type, '📢')
+
+
+class BestSellerSearch(models.Model):
+    """Modelo para guardar el historial de búsquedas de best sellers"""
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        help_text="Usuario que realizó la búsqueda"
+    )
+    category_id = models.CharField(
+        max_length=50,
+        help_text="ID de la categoría de Amazon"
+    )
+    category_search = models.CharField(
+        max_length=200,
+        help_text="Término de búsqueda o nombre de la categoría"
+    )
+    category_name = models.CharField(
+        max_length=200,
+        null=True,
+        blank=True,
+        help_text="Nombre completo de la categoría (si está disponible)"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Fecha y hora de la búsqueda"
+    )
+    
+    class Meta:
+        verbose_name = 'Búsqueda de Best Sellers'
+        verbose_name_plural = 'Búsquedas de Best Sellers'
+        ordering = ['-created_at']
+        # Evitar duplicados exactos consecutivos del mismo usuario
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.category_search} ({self.category_id}) - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+    
+    def get_absolute_url(self):
+        """Retorna la URL para ver los best sellers de esta categoría"""
+        from django.urls import reverse
+        from urllib.parse import urlencode
+        params = {
+            'category_id': self.category_id,
+            'category_search': self.category_search
+        }
+        return f"{reverse('products:best_sellers')}?{urlencode(params)}"

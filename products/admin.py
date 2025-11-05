@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, PriceAlert, Notification
+from .models import Product, PriceAlert, Notification, BestSellerSearch
 
 # Register your models here.
 
@@ -75,6 +75,25 @@ class NotificationAdmin(admin.ModelAdmin):
         }),
         ('Estado', {
             'fields': ('is_read',)
+        }),
+        ('Metadatos', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        })
+    )
+
+
+@admin.register(BestSellerSearch)
+class BestSellerSearchAdmin(admin.ModelAdmin):
+    list_display = ('user', 'category_search', 'category_id', 'category_name', 'created_at')
+    list_filter = ('created_at', 'user')
+    search_fields = ('user__username', 'category_search', 'category_name', 'category_id')
+    readonly_fields = ('created_at',)
+    ordering = ('-created_at',)
+    
+    fieldsets = (
+        ('Información de la Búsqueda', {
+            'fields': ('user', 'category_id', 'category_search', 'category_name')
         }),
         ('Metadatos', {
             'fields': ('created_at',),

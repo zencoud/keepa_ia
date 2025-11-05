@@ -122,6 +122,27 @@
   .footer {
     @apply bg-slate-900/90 backdrop-blur-xl border-t border-white/10 text-slate-300;
   }
+  
+  /* Search Category Card - Blur extra fuerte para evitar confusión con contenido de abajo */
+  /* Extiende glass-card pero con blur más fuerte */
+  .glass-card-search-category {
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    position: relative;
+    z-index: 900;
+  }
+  
+  /* Search category input container - z-index alto para dropdown */
+  .search-category-input-container {
+    position: relative;
+    z-index: 901;
+  }
+  
+  /* Category results dropdown - z-index muy alto */
+  .category-results-dropdown {
+    position: absolute;
+    z-index: 9999;
+  }
 }
 
 @layer utilities {

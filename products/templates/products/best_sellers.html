@@ -19,15 +19,43 @@
         {% render_flash_messages %}
         
         <!-- Search Category Card -->
-        <div class="glass-card glass-card-hover mb-8 p-8 animate-fade-in">
+        <div class="glass-card glass-card-hover glass-card-search-category mb-8 p-8 animate-fade-in">
             <h2 class="text-3xl font-bold text-gradient mb-6 text-center">Best Sellers de Amazon</h2>
+            
+            <!-- Recent Searches -->
+            {% if recent_searches %}
+            <div class="mb-6 max-w-2xl mx-auto">
+                <h3 class="text-sm font-semibold text-slate-300 mb-3 flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Búsquedas Recientes
+                </h3>
+                <div class="flex flex-wrap gap-2">
+                    {% for search in recent_searches %}
+                        <a href="{% url 'products:best_sellers' %}?category_id={{ search.category_id }}&category_search={{ search.category_search|urlencode }}" 
+                           class="inline-flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-[40px] text-sm transition-all duration-200 border border-white/20 hover:border-white/40 backdrop-blur-sm">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            {{ search.category_search|truncatechars:40 }}
+                            {% if search.created_at %}
+                                <span class="ml-2 text-xs text-slate-400">
+                                    &nbsp;{{ search.created_at|timesince }} atrás
+                                </span>
+                            {% endif %}
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
             
             <form method="get" action="{% url 'products:best_sellers' %}" class="max-w-2xl mx-auto">
                 <div class="mb-6">
                     <label for="category_search" class="block text-sm font-semibold text-white mb-2">
                         Buscar Categoría
                     </label>
-                    <div class="relative">
+                    <div class="search-category-input-container">
                         <input 
                             type="text" 
                             id="category_search" 
@@ -35,8 +63,9 @@
                             placeholder="Ej: laptops, electronics, books..." 
                             autocomplete="off"
                             class="form-input w-full pr-10"
+                            value="{{ category_search|default:'' }}"
                         >
-                        <div id="category_results" class="hidden absolute z-50 w-full mt-2 bg-white/10 backdrop-blur-lg rounded-[40px] border border-white/20 shadow-xl max-h-60 overflow-y-auto"></div>
+                        <div id="category_results" class="category-results-dropdown hidden w-full mt-2 bg-white/10 backdrop-blur-xl rounded-[40px] border border-white/20 shadow-xl max-h-60 overflow-y-auto"></div>
                         <input type="hidden" id="category_id" name="category_id" value="{{ category_id }}">
                     </div>
                     <p class="text-sm text-slate-400 mt-2">
@@ -122,8 +151,8 @@
                             
                             <!-- Action Buttons -->
                             <div class="flex gap-2">
-                                <a href="{% url 'products:search' %}" 
-                                   onclick="sessionStorage.setItem('prefill_asin', '{{ product.asin }}'); window.location.href='{% url 'products:search' %}'; return false;"
+                                <a href="{% url 'products:detail' asin=product.asin %}" 
+                                   onclick="fetchProductAndRedirect(event, '{{ product.asin }}'); return false;"
                                    class="btn-primary flex-1 text-center py-2 text-sm">
                                     Ver Detalles
                                 </a>
@@ -270,8 +299,35 @@
     }
     
     // Si hay una categoría seleccionada, mostrarla en el input
-    {% if category_id and category_name %}
-        categorySearchInput.value = '{{ category_name }}';
+    // Esto ya se hace con el value en el input HTML, pero lo mantenemos por compatibilidad
+    {% if category_search %}
+        categorySearchInput.value = '{{ category_search|escapejs }}';
+    {% elif category_id and category_name %}
+        categorySearchInput.value = '{{ category_name|escapejs }}';
     {% endif %}
+    
+    // Función para hacer fetch del producto y redirigir al detalle
+    function fetchProductAndRedirect(event, asin) {
+        event.preventDefault();
+        const link = event.currentTarget;
+        const originalText = link.innerHTML;
+        
+        // Mostrar estado de carga
+        link.disabled = true;
+        link.style.pointerEvents = 'none';
+        link.innerHTML = `
+            <svg class="w-4 h-4 mx-auto animate-spin inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Cargando...
+        `;
+        
+        // El producto se cargará automáticamente cuando se acceda a la URL de detalle
+        // La vista product_detail_view ahora hace fetch automático si no existe
+        const detailUrl = `{% url 'products:detail' asin='PLACEHOLDER' %}`.replace('PLACEHOLDER', asin);
+        
+        // Redirigir directamente - la vista se encargará del fetch automático
+        window.location.href = detailUrl;
+    }
 </script>
 {% endblock %}
